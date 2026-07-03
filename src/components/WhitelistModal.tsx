@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { body, display, faint, gold, goldLight, ink, line, mono, muted } from "../lib/theme";
 import { supabase } from "../lib/supabase";
+import { useAuth, extractXHandle, setReopenFlag } from "../hooks/useAuth";
 import {
   blurInp,
   FolksSeal,
@@ -11,7 +12,6 @@ import {
   microLabel,
 } from "./shared";
 
-const X_URL = "https://x.com/thefolkseth_";
 const INTENT_TEXT = "Early access secured on the @thefolkseth_ Folkslist.";
 const INTENT_URL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(INTENT_TEXT)}`;
 
@@ -127,8 +127,22 @@ const confirmBtn: React.CSSProperties = {
 };
 
 export default function WhitelistModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [twitter, setTwitter] = useState("");
-  const [twitterConnected, setTwitterConnected] = useState(false);
+  const auth = useAuth();
+  const handle = extractXHandle(auth.user);
+  const [connecting, setConnecting] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  async function connectX() {
+    setAuthError("");
+    setConnecting(true);
+    setReopenFlag();
+    const error = await auth.signInWithX();
+    if (error) {
+      setConnecting(false);
+      setAuthError("Could not open X sign-in. Try again.");
+    }
+    // On success the browser navigates to X, so nothing else to do here.
+  }
 
   const [tweetUrl, setTweetUrl] = useState("");
   const [posted, setPosted] = useState(false);
@@ -148,8 +162,6 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const p = JSON.parse(saved);
-        setTwitter(p.twitter ?? "");
-        setTwitterConnected(!!p.twitterConnected);
         setTweetUrl(p.tweetUrl ?? "");
         setPosted(!!p.posted);
         setWallet(p.wallet ?? "");
@@ -162,11 +174,11 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
   useEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ twitter, twitterConnected, tweetUrl, posted, wallet }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ tweetUrl, posted, wallet }));
     } catch {}
-  }, [twitter, twitterConnected, tweetUrl, posted, wallet, ready]);
+  }, [tweetUrl, posted, wallet, ready]);
 
-  const c1 = twitterConnected && twitter.trim().length > 1;
+  const c1 = !!auth.user;
   const c2 = posted && isValidTweetUrl(tweetUrl);
   const c3 = walletConfirmed && isValidEvm(wallet);
   const allDone = c1 && c2 && c3;
@@ -183,7 +195,7 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
     setErr("");
     setSending(true);
     const { error } = await supabase.from(WHITELIST_TABLE).insert([
-      { twitter: twitter.trim(), tweet_url: tweetUrl.trim(), wallet: wallet.trim() },
+      { twitter: handle.trim(), tweet_url: tweetUrl.trim(), wallet: wallet.trim() },
     ]);
     setSending(false);
     if (error) {
@@ -303,56 +315,57 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
             <StepShell index={1} total={3} title="Connect Your X Account" subtitle="Identity" done={c1} locked={false}>
               {!c1 ? (
                 <>
-                  <p style={{ margin: "0 0 8px", fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
-                    Open X to confirm you're signed in, then enter your handle to connect it here.
+                  <p style={{ margin: "0 0 10px", fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
+                    Sign in with X to verify it's really you. This opens X's own login screen.
                   </p>
-                  <a
-                    href={X_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={connectX}
+                    disabled={connecting}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       gap: "8px",
                       width: "100%",
-                      background: "rgba(255,255,255,0.03)",
+                      background: connecting ? "rgba(255,255,255,0.02)" : "#fff",
                       border: `1px solid ${line}`,
                       borderRadius: "5px",
-                      padding: "9px",
-                      color: "#fff",
+                      padding: "10px",
+                      color: connecting ? "rgba(247,245,239,0.4)" : "#0a0a08",
                       fontFamily: body,
-                      fontSize: "0.68rem",
-                      fontWeight: 600,
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
                       letterSpacing: "0.06em",
-                      textDecoration: "none",
-                      marginBottom: "8px",
+                      cursor: connecting ? "wait" : "pointer",
                     }}
                   >
                     <StepIcon kind="connect" />
-                    Open X
-                  </a>
-                  <p style={{ ...microLabel, margin: "0 0 6px" }}>Your X handle</p>
-                  <input
-                    type="text"
-                    placeholder="@yourhandle"
-                    value={twitter}
-                    onChange={(e) => setTwitter(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && twitter.trim().length > 1) setTwitterConnected(true);
-                    }}
-                    style={inputStyle}
-                    onFocus={focusInp}
-                    onBlur={blurInp}
-                  />
-                  {twitter.trim().length > 1 && (
-                    <button onClick={() => setTwitterConnected(true)} style={confirmBtn}>
-                      Connect Account
-                    </button>
+                    {connecting ? "Opening X..." : "Connect X Account"}
+                  </button>
+                  {authError && (
+                    <p style={{ fontFamily: body, fontSize: "0.6rem", color: "#d96b5a", margin: "6px 0 0" }}>{authError}</p>
                   )}
                 </>
               ) : (
-                <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Connected as {twitter.trim()}</p>
+                <>
+                  <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Connected as @{handle}</p>
+                  <button
+                    onClick={auth.signOut}
+                    style={{
+                      marginTop: "6px",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: body,
+                      fontSize: "0.6rem",
+                      color: faint,
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Not you? Disconnect
+                  </button>
+                </>
               )}
             </StepShell>
 
