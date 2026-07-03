@@ -178,6 +178,27 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
     } catch {}
   }, [tweetUrl, posted, wallet, ready]);
 
+  useEffect(() => {
+    if (!auth.user) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from(WHITELIST_TABLE)
+        .select("id")
+        .eq("user_id", auth.user!.id)
+        .maybeSingle();
+      if (!cancelled && !error && data) {
+        setAlreadySubmitted(true);
+        try {
+          localStorage.setItem(SUBMITTED_KEY, "true");
+        } catch {}
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user]);
+
   const c1 = !!auth.user;
   const c2 = posted && isValidTweetUrl(tweetUrl);
   const c3 = walletConfirmed && isValidEvm(wallet);
@@ -199,7 +220,17 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
     ]);
     setSending(false);
     if (error) {
-      setErr("Something went wrong. Please try again.");
+      if (error.code === "23505") {
+        // Row already exists for this user_id or wallet — they've applied before,
+        // localStorage just didn't know about it (cleared, different device, etc).
+        setErr("");
+        setAlreadySubmitted(true);
+        try {
+          localStorage.setItem(SUBMITTED_KEY, "true");
+        } catch {}
+      } else {
+        setErr("Something went wrong. Please try again.");
+      }
     } else {
       setSuccess(true);
       try {
