@@ -1,34 +1,36 @@
 /**
- * FOLKS — design tokens
- * Palette: black, gold, white (per brand). Everything else in the app
- * should pull from here rather than hard-coding colors, so the theme
- * stays consistent and easy to retune from one place.
+ * FOLKS — design tokens (Robinhood-launch theme)
+ *
+ * Token *names* are unchanged from the original build (gold, goldLight,
+ * goldDeep, line, etc.) so every component that already imports from here
+ * keeps working — only the values changed, from gold to Robinhood's green.
  */
 
 export const FONT_LINK =
-  "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,440;0,9..144,560;0,9..144,650;1,9..144,440;1,9..144,560&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap";
+  "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap";
 
-// Display serif — carries the personality of the page.
-export const display = "'Fraunces', Georgia, serif";
-// Body / UI sans — clean, geometric, quiet.
-export const body = "'Manrope', 'Segoe UI', Arial, sans-serif";
-// Ledger / numeral face — used for IDs, stats, timestamps.
+// Display — bold geometric sans, carries the fintech/app energy.
+export const display = "'Space Grotesk', 'Segoe UI', sans-serif";
+// Body / UI sans — clean, highly readable.
+export const body = "'Inter', 'Segoe UI', Arial, sans-serif";
+// Numerals / stats / ledger details.
 export const mono = "'JetBrains Mono', 'Courier New', monospace";
 
-export const ink        = "#060605";   // page background
-export const panel      = "#0c0b09";   // card / panel background
-export const panelRaise = "#131110";   // slightly raised panel
-export const line        = "rgba(201,162,39,0.16)";  // gold hairline
-export const lineStrong  = "rgba(201,162,39,0.32)";
+export const ink        = "#050605";   // page background — near-black
+export const panel      = "#0a0f0a";   // card / panel background, faint green cast
+export const panelRaise = "#0f150f";
+export const line        = "rgba(0,200,5,0.18)";   // green hairline
+export const lineStrong  = "rgba(0,200,5,0.36)";
 
-export const gold      = "#c9a227";
-export const goldLight = "#e8cf82";
-export const goldDeep  = "#7c5f20";
+// "gold" is the legacy name — value is Robinhood's signature green.
+export const gold      = "#00C805";
+export const goldLight = "#3DFF5C";
+export const goldDeep  = "#017a03";
 
-export const white = "#f7f5ef";
-export const muted = "rgba(247,245,239,0.52)";
-export const faint = "rgba(247,245,239,0.30)";
-export const ghost = "rgba(247,245,239,0.14)";
+export const white = "#f5f7f5";
+export const muted = "rgba(245,247,245,0.55)";
+export const faint = "rgba(245,247,245,0.32)";
+export const ghost = "rgba(245,247,245,0.14)";
 
 export const radius = { sm: "6px", md: "10px", lg: "16px", pill: "999px" };
 
