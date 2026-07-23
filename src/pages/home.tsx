@@ -8,10 +8,12 @@ import { Divider } from "../components/shared";
 import About from "../components/About";
 import FAQ from "../components/FAQ";
 import Footer from "../components/Footer";
+import EarlyRoleModal from "../components/EarlyRoleModal";
 import WhitelistModal from "../components/WhitelistModal";
 
 export default function Home() {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [earlyRoleOpen, setEarlyRoleOpen] = useState(false);
+  const [whitelistOpen, setWhitelistOpen] = useState(false);
 
   useEffect(() => {
     const l = document.createElement("link");
@@ -23,8 +25,10 @@ export default function Home() {
     };
   }, []);
 
+  // Only Early Role uses real X OAuth, so only it needs to reopen after the
+  // /auth/callback redirect brings the person back to this page.
   useEffect(() => {
-    if (consumeReopenFlag()) setModalOpen(true);
+    if (consumeReopenFlag()) setEarlyRoleOpen(true);
   }, []);
 
   return (
@@ -40,8 +44,8 @@ export default function Home() {
         a{color:inherit;text-decoration:none;}
       `}</style>
 
-      <Header onOpenModal={() => setModalOpen(true)} />
-      <Hero onOpenModal={() => setModalOpen(true)} />
+      <Header />
+      <Hero onOpenEarlyRole={() => setEarlyRoleOpen(true)} onOpenWhitelist={() => setWhitelistOpen(true)} />
 
       <Divider />
       <About />
@@ -50,7 +54,8 @@ export default function Home() {
 
       <Footer />
 
-      <WhitelistModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <EarlyRoleModal open={earlyRoleOpen} onClose={() => setEarlyRoleOpen(false)} />
+      <WhitelistModal open={whitelistOpen} onClose={() => setWhitelistOpen(false)} />
     </div>
   );
 }
