@@ -2,38 +2,30 @@ import { useEffect, useState } from "react";
 import { body, display, faint, gold, goldLight, ink, line, mono, muted } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setReopenFlag } from "../hooks/useAuth";
-import {
-  blurInp,
-  FolksSeal,
-  focusInp,
-  inputStyle,
-  isValidEvm,
-  isValidTweetUrl,
-  microLabel,
-} from "./shared";
+import { blurInp, FolksSeal, focusInp, inputStyle, isValidEvm, microLabel } from "./shared";
 
-const INTENT_TEXT = "Early access secured on the @thefolkseth_ Folkslist.";
-const INTENT_URL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(INTENT_TEXT)}`;
+const X_HANDLE = "thefolkseth_";
+/** Replace with the numeric ID from your pinned post's URL (…/status/<this number>). */
+const PINNED_TWEET_ID = "REPLACE_WITH_PINNED_TWEET_ID";
 
-/** Table in your Supabase project: twitter, tweet_url, wallet, created_at. */
+const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
+const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
+const RETWEET_URL = `https://twitter.com/intent/retweet?tweet_id=${PINNED_TWEET_ID}`;
+
+/** Table in your Supabase project: twitter, wallet, entry_number, created_at. */
 const WHITELIST_TABLE = "folks_whitelist";
 
 const STORAGE_KEY = "folks_v1";
 const SUBMITTED_KEY = "folks_submitted";
+const FOLKSLIST_CAP = 1000;
 
 /* ── Small step icons — plain geometric marks, no emoji ── */
-function StepIcon({ kind }: { kind: "connect" | "post" | "wallet" }) {
+function StepIcon({ kind }: { kind: "connect" | "wallet" }) {
   const common = { width: 16, height: 16, stroke: gold, strokeWidth: 1.4, fill: "none" } as const;
   if (kind === "connect")
     return (
       <svg viewBox="0 0 24 24" {...common}>
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25z" strokeLinejoin="round" />
-      </svg>
-    );
-  if (kind === "post")
-    return (
-      <svg viewBox="0 0 24 24" {...common}>
-        <path d="M4 4l16 8-16 8 4-8-4-8z" strokeLinejoin="round" />
       </svg>
     );
   return (
@@ -42,6 +34,70 @@ function StepIcon({ kind }: { kind: "connect" | "post" | "wallet" }) {
       <path d="M3 9h18" />
       <circle cx="16" cy="13.5" r="1.1" fill={gold} stroke="none" />
     </svg>
+  );
+}
+
+/* ── One row per social task in Step 2 ── */
+function TaskRow({
+  label,
+  done,
+  locked,
+  onClick,
+}: {
+  label: string;
+  done: boolean;
+  locked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={done || locked}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        width: "100%",
+        background: done ? "rgba(0,200,5,0.08)" : "rgba(255,255,255,0.03)",
+        border: `1px solid ${done ? `${gold}55` : line}`,
+        borderRadius: "6px",
+        padding: "10px 12px",
+        cursor: done || locked ? "default" : "pointer",
+        opacity: locked ? 0.4 : 1,
+        transition: "all 0.2s",
+      }}
+    >
+      <div
+        style={{
+          width: "18px",
+          height: "18px",
+          borderRadius: "50%",
+          border: `1px solid ${done ? gold : line}`,
+          background: done ? gold : "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {done && (
+          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+            <path d="M1 3.5L3.2 5.8L8 1" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      <span
+        style={{
+          fontFamily: body,
+          fontSize: "0.74rem",
+          fontWeight: 600,
+          color: done ? gold : "#fff",
+          textAlign: "left",
+        }}
+      >
+        {label}
+      </span>
+    </button>
   );
 }
 
@@ -144,9 +200,9 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
     // On success the browser navigates to X, so nothing else to do here.
   }
 
-  const [tweetUrl, setTweetUrl] = useState("");
-  const [posted, setPosted] = useState(false);
-  const [composeOpened, setComposeOpened] = useState(false);
+  const [followed, setFollowed] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [retweeted, setRetweeted] = useState(false);
 
   const [wallet, setWallet] = useState("");
   const [walletConfirmed, setWalletConfirmed] = useState(false);
@@ -156,14 +212,33 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
   const [success, setSuccess] = useState(false);
   const [err, setErr] = useState("");
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [claimedCount, setClaimedCount] = useState<number | null>(null);
+  const [full, setFull] = useState(false);
+  const [entryNumber, setEntryNumber] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from("folks_whitelist_counter").select("count").eq("id", 1).maybeSingle();
+      if (!cancelled && data) {
+        setClaimedCount(data.count);
+        if (data.count >= FOLKSLIST_CAP) setFull(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const p = JSON.parse(saved);
-        setTweetUrl(p.tweetUrl ?? "");
-        setPosted(!!p.posted);
+        setFollowed(!!p.followed);
+        setLiked(!!p.liked);
+        setRetweeted(!!p.retweeted);
         setWallet(p.wallet ?? "");
       }
       if (localStorage.getItem(SUBMITTED_KEY) === "true") setAlreadySubmitted(true);
@@ -174,9 +249,9 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
   useEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ tweetUrl, posted, wallet }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ followed, liked, retweeted, wallet }));
     } catch {}
-  }, [tweetUrl, posted, wallet, ready]);
+  }, [followed, liked, retweeted, wallet, ready]);
 
   useEffect(() => {
     if (!auth.user) return;
@@ -200,7 +275,7 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
   }, [auth.user]);
 
   const c1 = !!auth.user;
-  const c2 = posted && isValidTweetUrl(tweetUrl);
+  const c2 = followed && liked && retweeted;
   const c3 = walletConfirmed && isValidEvm(wallet);
   const allDone = c1 && c2 && c3;
 
@@ -213,14 +288,23 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
       setErr("You have already submitted an application.");
       return;
     }
+    if (full) {
+      setErr("The Folkslist is full.");
+      return;
+    }
     setErr("");
     setSending(true);
-    const { error } = await supabase.from(WHITELIST_TABLE).insert([
-      { twitter: handle.trim(), tweet_url: tweetUrl.trim(), wallet: wallet.trim() },
-    ]);
+    const { data, error } = await supabase
+      .from(WHITELIST_TABLE)
+      .insert([{ twitter: handle.trim(), wallet: wallet.trim() }])
+      .select("entry_number")
+      .maybeSingle();
     setSending(false);
     if (error) {
-      if (error.code === "23505") {
+      if (error.message?.includes("FOLKSLIST_FULL")) {
+        setFull(true);
+        setClaimedCount(FOLKSLIST_CAP);
+      } else if (error.code === "23505") {
         // Row already exists for this user_id or wallet — they've applied before,
         // localStorage just didn't know about it (cleared, different device, etc).
         setErr("");
@@ -232,6 +316,7 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
         setErr("Something went wrong. Please try again.");
       }
     } else {
+      if (data?.entry_number) setEntryNumber(data.entry_number);
       setSuccess(true);
       try {
         localStorage.setItem(SUBMITTED_KEY, "true");
@@ -305,7 +390,11 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
             seal
             eyebrow="Already Registered"
             title="Your Role Is Secured."
-            body="Your application has been saved. Verified wallets will be added ahead of mint."
+            body={
+              entryNumber
+                ? `You're Folk #${entryNumber}. Verified wallets will be added ahead of mint.`
+                : "Your application has been saved. Verified wallets will be added ahead of mint."
+            }
             onClose={close}
           />
         ) : success ? (
@@ -313,7 +402,19 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
             seal
             eyebrow="Application Sent"
             title="You Are Under Review."
-            body="Verified wallets will be added to the Folkslist ahead of mint."
+            body={
+              entryNumber
+                ? `You're Folk #${entryNumber} of ${FOLKSLIST_CAP}. Verified wallets will be added to the Folkslist ahead of mint.`
+                : "Verified wallets will be added to the Folkslist ahead of mint."
+            }
+            onClose={close}
+          />
+        ) : full ? (
+          <StatusView
+            seal
+            eyebrow="Folkslist Full"
+            title="All 1,000 Slots Are Claimed."
+            body="The Folkslist has reached capacity. Follow along for news on the public mint."
             onClose={close}
           />
         ) : (
@@ -339,6 +440,7 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
               </div>
               <p style={{ fontFamily: mono, fontSize: "0.6rem", color: `${gold}99`, margin: "6px 0 0", letterSpacing: "0.06em" }}>
                 {[c1, c2, c3].filter(Boolean).length} of 3 steps complete
+                {claimedCount !== null && ` · ${claimedCount} / ${FOLKSLIST_CAP} claimed`}
               </p>
             </div>
 
@@ -400,66 +502,45 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
               )}
             </StepShell>
 
-            {/* Step 2 — Post early alpha */}
-            <StepShell index={2} total={3} title="Post Your Early Alpha" subtitle="Verification" done={c2} locked={!c1}>
+            {/* Step 2 — Social tasks */}
+            <StepShell index={2} total={3} title="Complete Social Tasks" subtitle="Engagement" done={c2} locked={!c1}>
               {!c2 ? (
                 <>
-                  <p style={{ margin: "0 0 8px", fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
-                    Post about Folks on X, then paste the link to your post below.
+                  <p style={{ margin: "0 0 10px", fontFamily: body, fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
+                    Each button opens X — come back and it'll check off on its own.
                   </p>
-                  <a
-                    href={INTENT_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setComposeOpened(true)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      width: "100%",
-                      background: "rgba(255,255,255,0.03)",
-                      border: `1px solid ${line}`,
-                      borderRadius: "5px",
-                      padding: "9px",
-                      color: "#fff",
-                      fontFamily: body,
-                      fontSize: "0.68rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.06em",
-                      textDecoration: "none",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    <StepIcon kind="post" />
-                    {composeOpened ? "Reopen Composer" : "Compose Post"}
-                  </a>
-                  <p style={{ ...microLabel, margin: "0 0 6px" }}>Link to your post</p>
-                  <input
-                    type="url"
-                    placeholder="https://x.com/yourhandle/status/..."
-                    value={tweetUrl}
-                    onChange={(e) => setTweetUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && isValidTweetUrl(tweetUrl)) setPosted(true);
-                    }}
-                    style={inputStyle}
-                    onFocus={focusInp}
-                    onBlur={blurInp}
-                  />
-                  {tweetUrl && !isValidTweetUrl(tweetUrl) && (
-                    <p style={{ fontFamily: body, fontSize: "0.6rem", color: "#d96b5a", margin: "5px 0 0" }}>
-                      Needs a valid x.com or twitter.com link.
-                    </p>
-                  )}
-                  {isValidTweetUrl(tweetUrl) && (
-                    <button onClick={() => setPosted(true)} style={confirmBtn}>
-                      Verify Post
-                    </button>
-                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <TaskRow
+                      label="Follow @thefolkseth_"
+                      done={followed}
+                      locked={false}
+                      onClick={() => {
+                        window.open(FOLLOW_URL, "_blank");
+                        setTimeout(() => setFollowed(true), 900);
+                      }}
+                    />
+                    <TaskRow
+                      label="Like the pinned post"
+                      done={liked}
+                      locked={!followed}
+                      onClick={() => {
+                        window.open(LIKE_URL, "_blank");
+                        setTimeout(() => setLiked(true), 900);
+                      }}
+                    />
+                    <TaskRow
+                      label="Retweet the pinned post"
+                      done={retweeted}
+                      locked={!liked}
+                      onClick={() => {
+                        window.open(RETWEET_URL, "_blank");
+                        setTimeout(() => setRetweeted(true), 900);
+                      }}
+                    />
+                  </div>
                 </>
               ) : (
-                <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Post verified</p>
+                <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>All tasks complete</p>
               )}
             </StepShell>
 
