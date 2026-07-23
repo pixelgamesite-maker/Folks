@@ -125,7 +125,7 @@ export function FolksSeal({ size = 40 }: { size?: number }) {
         x="32"
         y="38"
         textAnchor="middle"
-        style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "20px", fill: gold }}
+        style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "19px", fill: gold }}
       >
         F
       </text>
@@ -133,12 +133,13 @@ export function FolksSeal({ size = 40 }: { size?: number }) {
   );
 }
 
-/* ── Ambient guilloché backdrop — fine engraved rings, certificate-like ── */
+/* ── Ambient backdrop — faint ticker grid + soft glow, fintech-dashboard feel ── */
 export function Guilloche({ opacity = 0.5 }: { opacity?: number }) {
-  const rings = Array.from({ length: 7 });
+  const cols = 14;
+  const rows = 10;
   return (
     <svg
-      viewBox="0 0 800 800"
+      viewBox="0 0 800 600"
       style={{
         position: "absolute",
         inset: 0,
@@ -149,31 +150,11 @@ export function Guilloche({ opacity = 0.5 }: { opacity?: number }) {
       }}
       preserveAspectRatio="xMidYMid slice"
     >
-      {rings.map((_, i) => (
-        <ellipse
-          key={i}
-          cx="400"
-          cy="360"
-          rx={120 + i * 46}
-          ry={90 + i * 34}
-          fill="none"
-          stroke={gold}
-          strokeWidth="0.5"
-          opacity={0.16 - i * 0.012}
-        />
+      {Array.from({ length: cols + 1 }).map((_, i) => (
+        <line key={`v${i}`} x1={(800 / cols) * i} y1="0" x2={(800 / cols) * i} y2="600" stroke={gold} strokeWidth="0.4" opacity="0.12" />
       ))}
-      {rings.map((_, i) => (
-        <ellipse
-          key={`b${i}`}
-          cx="400"
-          cy="360"
-          rx={90 + i * 46}
-          ry={130 + i * 34}
-          fill="none"
-          stroke={gold}
-          strokeWidth="0.5"
-          opacity={0.1 - i * 0.008}
-        />
+      {Array.from({ length: rows + 1 }).map((_, i) => (
+        <line key={`h${i}`} x1="0" y1={(600 / rows) * i} x2="800" y2={(600 / rows) * i} stroke={gold} strokeWidth="0.4" opacity="0.1" />
       ))}
     </svg>
   );
