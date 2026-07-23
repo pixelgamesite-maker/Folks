@@ -16,16 +16,25 @@ export const body = "'Inter', 'Segoe UI', Arial, sans-serif";
 // Numerals / stats / ledger details.
 export const mono = "'JetBrains Mono', 'Courier New', monospace";
 
-export const ink        = "#050605";   // page background — near-black
-export const panel      = "#0a0f0a";   // card / panel background, faint green cast
-export const panelRaise = "#0f150f";
-export const line        = "rgba(0,200,5,0.18)";   // green hairline
-export const lineStrong  = "rgba(0,200,5,0.36)";
+export const ink        = "#08090a";   // page background — near-black, slightly cooler
+export const panel      = "#0b0f0c";   // card / panel background, faint green cast
+export const panelRaise = "#10140f";
+export const line        = "rgba(46,125,74,0.22)";   // muted green hairline
+export const lineStrong  = "rgba(46,125,74,0.4)";
 
-// "gold" is the legacy name — value is Robinhood's signature green.
-export const gold      = "#00C805";
-export const goldLight = "#3DFF5C";
-export const goldDeep  = "#017a03";
+// "gold" is the legacy name — value is now a muted, desaturated green
+// instead of Robinhood's neon brand green. Same idea, much quieter.
+export const gold      = "#3E9B5C";
+export const goldLight = "#5FBE7C";
+export const goldDeep  = "#245C38";
+
+// Secondary accent — reserved for the Whitelist flow (uncapped, unhurried)
+// so it reads as a genuinely different path from Early Role (green, scarce),
+// and so the page isn't monochrome green top to bottom.
+export const violet      = "#8B6BF0";
+export const violetLight = "#AC94F5";
+export const violetDeep  = "#5A3FC0";
+export const violetLine  = "rgba(139,107,240,0.22)";
 
 export const white = "#f5f7f5";
 export const muted = "rgba(245,247,245,0.55)";
