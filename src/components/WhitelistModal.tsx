@@ -1,312 +1,309 @@
 import { useEffect, useState } from "react";
-import { body, display, faint, gold, goldLight, ink, line, mono, muted } from "../lib/theme";
+import { body, display, ink, mono, muted, violet, violetLight, violetLine } from "../lib/theme";
 import { supabase } from "../lib/supabase";
-import { useAuth, extractXHandle, setReopenFlag } from "../hooks/useAuth";
-import { blurInp, FolksSeal, focusInp, inputStyle, isValidEvm, microLabel } from "./shared";
+import { isValidEvm, isValidUrl } from "./shared";
 
-const X_HANDLE = "thefolkseth_";
-/** Replace with the numeric ID from your pinned post's URL (…/status/<this number>). */
-const PINNED_TWEET_ID = "REPLACE_WITH_PINNED_TWEET_ID";
+const X_URL = "https://x.com/thefolkseth_";
+const PINNED_TWEET_URL = "https://x.com/thefolkseth_/status/REPLACE_WITH_PINNED_TWEET_ID";
 
-const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
-const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
-const RETWEET_URL = `https://twitter.com/intent/retweet?tweet_id=${PINNED_TWEET_ID}`;
+const APPLICATIONS_TABLE = "folks_whitelist_applications";
+const STORAGE_KEY = "folks_wl_draft_v1";
+const SUBMITTED_KEY = "folks_wl_submitted";
+const TOTAL_STEPS = 3;
 
-/** Table in your Supabase project: twitter, wallet, entry_number, created_at. */
-const WHITELIST_TABLE = "folks_whitelist";
-
-const STORAGE_KEY = "folks_v1";
-const SUBMITTED_KEY = "folks_submitted";
-const FOLKSLIST_CAP = 1000;
-
-/* ── Small step icons — plain geometric marks, no emoji ── */
-function StepIcon({ kind }: { kind: "connect" | "wallet" }) {
-  const common = { width: 16, height: 16, stroke: gold, strokeWidth: 1.4, fill: "none" } as const;
-  if (kind === "connect")
-    return (
-      <svg viewBox="0 0 24 24" {...common}>
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25z" strokeLinejoin="round" />
-      </svg>
-    );
+/* ── Tiny inline icons — no external icon package needed ── */
+function IconCheck({ size = 16 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" {...common}>
-      <rect x="3" y="6" width="18" height="13" rx="2" />
-      <path d="M3 9h18" />
-      <circle cx="16" cy="13.5" r="1.1" fill={gold} stroke="none" />
+    <svg width={size} height={size * 0.8} viewBox="0 0 22 18" fill="none">
+      <path d="M2 9L8 15L20 2" stroke={ink} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconArrow({ dir = "right" }: { dir?: "left" | "right" }) {
+  return (
+    <svg width="13" height="10" viewBox="0 0 16 12" fill="none" style={{ transform: dir === "left" ? "rotate(180deg)" : "none" }}>
+      <path d="M9 1l6 5-6 5M1 6h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/* ── One row per social task in Step 2 ── */
-function TaskRow({
-  label,
-  done,
-  locked,
-  onClick,
-}: {
-  label: string;
-  done: boolean;
-  locked: boolean;
-  onClick: () => void;
-}) {
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "rgba(0,0,0,0.35)",
+  border: `1px solid ${violetLine}`,
+  borderRadius: "8px",
+  padding: "11px 12px",
+  fontSize: "0.85rem",
+  color: "#fff",
+  fontFamily: body,
+  outline: "none",
+  boxSizing: "border-box",
+  resize: "vertical" as const,
+};
+
+/* ───────────────────────── question building blocks ───────────────────────── */
+
+function QLabel({ n, children }: { n: string; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={done || locked}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        width: "100%",
-        background: done ? "rgba(0,200,5,0.08)" : "rgba(255,255,255,0.03)",
-        border: `1px solid ${done ? `${gold}55` : line}`,
-        borderRadius: "6px",
-        padding: "10px 12px",
-        cursor: done || locked ? "default" : "pointer",
-        opacity: locked ? 0.4 : 1,
-        transition: "all 0.2s",
-      }}
-    >
-      <div
-        style={{
-          width: "18px",
-          height: "18px",
-          borderRadius: "50%",
-          border: `1px solid ${done ? gold : line}`,
-          background: done ? gold : "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {done && (
-          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-            <path d="M1 3.5L3.2 5.8L8 1" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </div>
-      <span
-        style={{
-          fontFamily: body,
-          fontSize: "0.74rem",
-          fontWeight: 600,
-          color: done ? gold : "#fff",
-          textAlign: "left",
-        }}
-      >
-        {label}
-      </span>
-    </button>
+    <p style={{ fontFamily: mono, fontSize: "0.72rem", letterSpacing: "0.02em", color: "#fff", margin: "0 0 10px", lineHeight: 1.5 }}>
+      <span style={{ color: violet }}>{n}</span> {children}
+    </p>
   );
 }
 
-function StepShell({
-  index,
-  total,
-  title,
-  subtitle,
-  done,
-  locked,
-  children,
+function TextQuestion({
+  n,
+  label,
+  value,
+  onChange,
+  placeholder,
 }: {
-  index: number;
-  total: number;
-  title: string;
-  subtitle: string;
-  done: boolean;
-  locked: boolean;
-  children: React.ReactNode;
+  n: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
 }) {
-  if (locked) return null;
   return (
-    <div
-      style={{
-        border: `1px solid ${done ? `${gold}55` : line}`,
-        borderRadius: "10px",
-        padding: "16px 16px 15px",
-        marginBottom: "12px",
-        background: done ? "linear-gradient(160deg,#141007 0%,#0a0906 100%)" : "linear-gradient(160deg,#100e0a 0%,#0a0906 100%)",
-        animation: "folksFadeUp 0.45s ease both",
-        boxShadow: done ? `0 0 22px ${gold}12` : "none",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-        <div
-          style={{
-            width: "26px",
-            height: "26px",
-            borderRadius: "50%",
-            border: `1px solid ${done ? gold : line}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            background: done ? gold : "transparent",
-          }}
-        >
-          {done ? (
-            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-              <path d="M1 4.5L4 7.5L10 1" stroke={ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <span style={{ fontFamily: mono, fontSize: "0.66rem", color: gold }}>{index}</span>
-          )}
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontFamily: display, fontSize: "0.98rem", fontWeight: 600, color: "#fff" }}>{title}</p>
-          <p style={{ margin: 0, fontFamily: mono, fontSize: "0.56rem", letterSpacing: "0.1em", textTransform: "uppercase", color: faint }}>
-            {subtitle} · Step {index} of {total}
-          </p>
-        </div>
-      </div>
-      {children}
+    <div style={{ marginBottom: "22px" }}>
+      <QLabel n={n}>{label}</QLabel>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Type your answer..."} rows={3} style={inputStyle} />
     </div>
   );
 }
 
-const confirmBtn: React.CSSProperties = {
-  marginTop: "10px",
-  width: "100%",
-  background: `${gold}1e`,
-  color: gold,
-  border: `1px solid ${gold}44`,
-  borderRadius: "5px",
-  padding: "9px",
-  fontFamily: body,
-  fontSize: "0.66rem",
-  fontWeight: 700,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
-  cursor: "pointer",
-  transition: "all 0.2s",
-};
+function YesNoQuestion({
+  n,
+  label,
+  value,
+  onChange,
+  detailValue,
+  onDetailChange,
+  detailPlaceholder,
+}: {
+  n: string;
+  label: string;
+  value: boolean | null;
+  onChange: (v: boolean) => void;
+  detailValue: string;
+  onDetailChange: (v: string) => void;
+  detailPlaceholder: string;
+}) {
+  return (
+    <div style={{ marginBottom: "22px" }}>
+      <QLabel n={n}>{label}</QLabel>
+      <div style={{ display: "flex", gap: "8px", marginBottom: value === true ? "10px" : 0 }}>
+        {([["Yes", true], ["No", false]] as [string, boolean][]).map(([label2, v]) => (
+          <button
+            key={String(v)}
+            onClick={() => onChange(v)}
+            style={{
+              flex: 1,
+              fontFamily: mono,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "10px",
+              borderRadius: "7px",
+              cursor: "pointer",
+              color: value === v ? ink : "rgba(245,247,245,0.55)",
+              background: value === v ? violet : "transparent",
+              border: `1px solid ${value === v ? violet : violetLine}`,
+              transition: "all 0.15s ease",
+            }}
+          >
+            {label2}
+          </button>
+        ))}
+      </div>
+      {value === true && (
+        <div style={{ animation: "folksRevealDown 0.3s ease both" }}>
+          <textarea value={detailValue} onChange={(e) => onDetailChange(e.target.value)} placeholder={detailPlaceholder} rows={2} style={inputStyle} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaskRow({
+  label,
+  actionLabel,
+  actionHref,
+  confirmed,
+  ready,
+  onOpen,
+  onConfirm,
+  children,
+}: {
+  label: string;
+  actionLabel: string;
+  actionHref: string;
+  confirmed: boolean;
+  ready: boolean;
+  onOpen: () => void;
+  onConfirm: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div style={{ border: `1px solid ${violetLine}`, borderRadius: "10px", padding: "14px", marginBottom: "10px" }}>
+      <p style={{ margin: "0 0 8px", fontFamily: mono, fontSize: "0.68rem", letterSpacing: "0.06em", color: muted }}>{label}</p>
+      {children}
+      <div style={{ display: "flex", gap: "8px", marginTop: children ? "8px" : 0 }}>
+        <a
+          href={actionHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onOpen}
+          style={{
+            flex: 1,
+            textAlign: "center",
+            fontFamily: mono,
+            fontSize: "0.64rem",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: "#fff",
+            border: `1px solid ${violetLight}55`,
+            borderRadius: "7px",
+            padding: "9px",
+            textDecoration: "none",
+          }}
+        >
+          {actionLabel}
+        </a>
+        <button
+          disabled={!ready || confirmed}
+          onClick={onConfirm}
+          style={{
+            flex: 1,
+            fontFamily: mono,
+            fontSize: "0.64rem",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: confirmed || ready ? ink : "rgba(245,247,245,0.3)",
+            background: confirmed || ready ? violet : "rgba(255,255,255,0.04)",
+            border: "none",
+            borderRadius: "7px",
+            padding: "9px",
+            cursor: ready && !confirmed ? "pointer" : "default",
+          }}
+        >
+          {confirmed ? "Confirmed" : "Confirm"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ MAIN ═══════════════════════════ */
 
 export default function WhitelistModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const auth = useAuth();
-  const handle = extractXHandle(auth.user);
-  const [connecting, setConnecting] = useState(false);
-  const [authError, setAuthError] = useState("");
+  const [step, setStep] = useState(0);
 
-  async function connectX() {
-    setAuthError("");
-    setConnecting(true);
-    setReopenFlag();
-    const error = await auth.signInWithX();
-    if (error) {
-      setConnecting(false);
-      setAuthError("Could not open X sign-in. Try again.");
-    }
-    // On success the browser navigates to X, so nothing else to do here.
-  }
+  const [why, setWhy] = useState("");
+  const [valuable, setValuable] = useState("");
+  const [isCollector, setIsCollector] = useState<boolean | null>(null);
+  const [collectorDetail, setCollectorDetail] = useState("");
+
+  const [hasContributed, setHasContributed] = useState<boolean | null>(null);
+  const [contributedDetail, setContributedDetail] = useState("");
+  const [supportPlan, setSupportPlan] = useState("");
 
   const [followed, setFollowed] = useState(false);
+  const [followConfirmed, setFollowConfirmed] = useState(false);
   const [liked, setLiked] = useState(false);
-  const [retweeted, setRetweeted] = useState(false);
-
+  const [likeConfirmed, setLikeConfirmed] = useState(false);
+  const [commentUrl, setCommentUrl] = useState("");
+  const [commentConfirmed, setCommentConfirmed] = useState(false);
+  const [twitterUsername, setTwitterUsername] = useState("");
   const [wallet, setWallet] = useState("");
   const [walletConfirmed, setWalletConfirmed] = useState(false);
 
-  const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [err, setErr] = useState("");
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
-  const [claimedCount, setClaimedCount] = useState<number | null>(null);
-  const [full, setFull] = useState(false);
-  const [entryNumber, setEntryNumber] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase.from("folks_whitelist_counter").select("count").eq("id", 1).maybeSingle();
-      if (!cancelled && data) {
-        setClaimedCount(data.count);
-        if (data.count >= FOLKSLIST_CAP) setFull(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const p = JSON.parse(saved);
-        setFollowed(!!p.followed);
-        setLiked(!!p.liked);
-        setRetweeted(!!p.retweeted);
+        setWhy(p.why ?? "");
+        setValuable(p.valuable ?? "");
+        setIsCollector(p.isCollector ?? null);
+        setCollectorDetail(p.collectorDetail ?? "");
+        setHasContributed(p.hasContributed ?? null);
+        setContributedDetail(p.contributedDetail ?? "");
+        setSupportPlan(p.supportPlan ?? "");
+        setCommentUrl(p.commentUrl ?? "");
+        setTwitterUsername(p.twitterUsername ?? "");
         setWallet(p.wallet ?? "");
       }
       if (localStorage.getItem(SUBMITTED_KEY) === "true") setAlreadySubmitted(true);
     } catch {}
-    setReady(true);
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ followed, liked, retweeted, wallet }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ why, valuable, isCollector, collectorDetail, hasContributed, contributedDetail, supportPlan, commentUrl, twitterUsername, wallet })
+      );
     } catch {}
-  }, [followed, liked, retweeted, wallet, ready]);
+  }, [why, valuable, isCollector, collectorDetail, hasContributed, contributedDetail, supportPlan, commentUrl, twitterUsername, wallet]);
 
-  useEffect(() => {
-    if (!auth.user) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from(WHITELIST_TABLE)
-        .select("id")
-        .eq("user_id", auth.user!.id)
-        .maybeSingle();
-      if (!cancelled && !error && data) {
-        setAlreadySubmitted(true);
-        try {
-          localStorage.setItem(SUBMITTED_KEY, "true");
-        } catch {}
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [auth.user]);
+  const step0Valid = why.trim().length > 0 && valuable.trim().length > 0 && isCollector !== null && (isCollector === false || collectorDetail.trim().length > 0);
 
-  const c1 = !!auth.user;
-  const c2 = followed && liked && retweeted;
-  const c3 = walletConfirmed && isValidEvm(wallet);
-  const allDone = c1 && c2 && c3;
+  const step1Valid = hasContributed !== null && (hasContributed === false || contributedDetail.trim().length > 0) && supportPlan.trim().length > 0;
+
+  const step2Valid =
+    followConfirmed &&
+    likeConfirmed &&
+    commentConfirmed &&
+    isValidUrl(commentUrl) &&
+    twitterUsername.trim().length > 0 &&
+    walletConfirmed &&
+    isValidEvm(wallet);
+
+  const stepValid = [step0Valid, step1Valid, step2Valid][step];
+
+  function goNext() {
+    if (!stepValid) return;
+    setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
+  }
+  function goBack() {
+    setStep((s) => Math.max(s - 1, 0));
+  }
 
   async function submit() {
-    if (!allDone) {
+    if (!step2Valid) {
       setErr("Complete every step before submitting.");
       return;
     }
     if (alreadySubmitted) {
-      setErr("You have already submitted an application.");
-      return;
-    }
-    if (full) {
-      setErr("The Folkslist is full.");
+      setErr("This browser has already submitted an application.");
       return;
     }
     setErr("");
     setSending(true);
-    const { data, error } = await supabase
-      .from(WHITELIST_TABLE)
-      .insert([{ twitter: handle.trim(), wallet: wallet.trim() }])
-      .select("entry_number")
-      .maybeSingle();
+    const { error } = await supabase.from(APPLICATIONS_TABLE).insert([
+      {
+        twitter_username: twitterUsername.trim(),
+        wallet: wallet.trim(),
+        comment_url: commentUrl.trim(),
+        why_whitelisted: why.trim(),
+        valuable_member: valuable.trim(),
+        is_collector: isCollector,
+        collector_detail: isCollector ? collectorDetail.trim() : null,
+        has_contributed: hasContributed,
+        contributed_detail: hasContributed ? contributedDetail.trim() : null,
+        support_plan: supportPlan.trim(),
+      },
+    ]);
     setSending(false);
     if (error) {
-      if (error.message?.includes("FOLKSLIST_FULL")) {
-        setFull(true);
-        setClaimedCount(FOLKSLIST_CAP);
-      } else if (error.code === "23505") {
-        // Row already exists for this user_id or wallet — they've applied before,
-        // localStorage just didn't know about it (cleared, different device, etc).
+      if (error.code === "23505") {
         setErr("");
         setAlreadySubmitted(true);
         try {
@@ -315,17 +312,16 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
       } else {
         setErr("Something went wrong. Please try again.");
       }
-    } else {
-      if (data?.entry_number) setEntryNumber(data.entry_number);
-      setSuccess(true);
-      try {
-        localStorage.setItem(SUBMITTED_KEY, "true");
-      } catch {}
-      setAlreadySubmitted(true);
+      return;
     }
+    setSuccess(true);
+    try {
+      localStorage.setItem(SUBMITTED_KEY, "true");
+    } catch {}
+    setAlreadySubmitted(true);
   }
 
-  function close() {
+  function handleClose() {
     onClose();
     if (!alreadySubmitted) {
       setSuccess(false);
@@ -338,340 +334,313 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (e.target === e.currentTarget) handleClose();
       }}
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 200,
-        background: "rgba(0,0,0,0.88)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
+        background: "rgba(4,3,10,0.9)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: "16px",
       }}
     >
+      <style>{`
+        @keyframes folksModalIn2{from{opacity:0;transform:translateY(14px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes folksRevealDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+      `}</style>
+
       <div
         style={{
           width: "100%",
           maxWidth: "440px",
-          maxHeight: "94vh",
-          overflowY: "auto",
-          background: "#0b0a08",
-          border: `1px solid ${line}`,
+          maxHeight: "92vh",
+          overflow: "hidden",
+          background: "#0b0a10",
+          border: `1px solid ${violetLine}`,
           borderRadius: "14px",
-          padding: "26px 20px 22px",
-          animation: "folksModalIn 0.3s ease both",
+          animation: "folksModalIn2 0.25s ease both",
           position: "relative",
-          boxShadow: "0 40px 80px rgba(0,0,0,0.9), 0 0 60px rgba(201,162,39,0.06)",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.9), 0 0 60px rgba(139,107,240,0.08)",
         }}
       >
         <button
-          onClick={close}
-          style={{
-            position: "absolute",
-            top: "14px",
-            right: "16px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "rgba(247,245,239,0.25)",
-            fontSize: "1.1rem",
-            lineHeight: 1,
-          }}
+          onClick={handleClose}
+          style={{ position: "absolute", top: "14px", right: "16px", zIndex: 2, background: "none", border: "none", cursor: "pointer", color: "rgba(245,247,245,0.3)", fontSize: "1.1rem" }}
         >
           ✕
         </button>
 
         {alreadySubmitted ? (
-          <StatusView
-            seal
-            eyebrow="Already Registered"
-            title="Your Role Is Secured."
-            body={
-              entryNumber
-                ? `You're Folk #${entryNumber}. Verified wallets will be added ahead of mint.`
-                : "Your application has been saved. Verified wallets will be added ahead of mint."
-            }
-            onClose={close}
-          />
+          <div style={{ textAlign: "center", padding: "44px 26px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: violet, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <IconCheck size={18} />
+            </div>
+            <p style={{ fontFamily: mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: violet, margin: "0 0 8px" }}>Application Received</p>
+            <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.3rem", margin: "0 0 10px", color: "#fff" }}>You're on the list.</p>
+            <p style={{ fontSize: "0.85rem", color: muted, lineHeight: 1.6, margin: 0 }}>This wallet's spot has been saved. Selected applicants will be notified before mint.</p>
+          </div>
         ) : success ? (
-          <StatusView
-            seal
-            eyebrow="Application Sent"
-            title="You Are Under Review."
-            body={
-              entryNumber
-                ? `You're Folk #${entryNumber} of ${FOLKSLIST_CAP}. Verified wallets will be added to the Folkslist ahead of mint.`
-                : "Verified wallets will be added to the Folkslist ahead of mint."
-            }
-            onClose={close}
-          />
-        ) : full ? (
-          <StatusView
-            seal
-            eyebrow="Folkslist Full"
-            title="All 1,000 Slots Are Claimed."
-            body="The Folkslist has reached capacity. Follow along for news on the public mint."
-            onClose={close}
-          />
+          <div style={{ textAlign: "center", padding: "44px 26px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: violet, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <IconCheck size={18} />
+            </div>
+            <p style={{ fontFamily: mono, fontSize: "0.6rem", letterSpacing: "0.18em", textTransform: "uppercase", color: violet, margin: "0 0 8px" }}>Application Sent</p>
+            <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.3rem", margin: "0 0 10px", color: "#fff" }}>You're under review.</p>
+            <p style={{ fontSize: "0.85rem", color: muted, lineHeight: 1.6, margin: 0 }}>Selected wallets will be notified before mint. No cap here — take your time.</p>
+          </div>
         ) : (
           <>
-            <div style={{ marginBottom: "20px" }}>
-              <p style={{ ...microLabel, color: gold, margin: "0 0 4px" }}>Folkslist Application</p>
-              <h2 style={{ fontFamily: display, fontSize: "1.44rem", fontWeight: 650, color: "#fff", margin: "0 0 4px", letterSpacing: "0.01em" }}>
-                Claim Your Early Role
-              </h2>
-              <p style={{ fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, margin: "0 0 14px", lineHeight: 1.5 }}>
-                Connect your X account, post your early alpha, then register your wallet.
+            {/* header / progress */}
+            <div style={{ padding: "26px 22px 16px" }}>
+              <p style={{ fontFamily: mono, fontSize: "0.58rem", letterSpacing: "0.2em", textTransform: "uppercase", color: violet, margin: "0 0 6px" }}>Whitelist Application</p>
+              <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.25rem", margin: "0 0 14px", color: "#fff" }}>
+                {step < 2 ? "Tell us about you" : "Verify & submit"}
               </p>
-              <div style={{ height: "2px", background: `${gold}18`, borderRadius: "2px", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    borderRadius: "2px",
-                    background: `linear-gradient(90deg,${gold},${goldLight})`,
-                    width: `${([c1, c2, c3].filter(Boolean).length / 3) * 100}%`,
-                    transition: "width 0.4s ease",
-                  }}
-                />
+              <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
+                {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+                  <div key={i} style={{ flex: 1, height: "3px", borderRadius: "2px", background: i <= step ? violet : violetLine, transition: "background 0.3s ease" }} />
+                ))}
               </div>
-              <p style={{ fontFamily: mono, fontSize: "0.6rem", color: `${gold}99`, margin: "6px 0 0", letterSpacing: "0.06em" }}>
-                {[c1, c2, c3].filter(Boolean).length} of 3 steps complete
-                {claimedCount !== null && ` · ${claimedCount} / ${FOLKSLIST_CAP} claimed`}
+              <p style={{ fontFamily: mono, fontSize: "0.6rem", color: "rgba(245,247,245,0.32)", margin: 0 }}>
+                Step {step + 1} of {TOTAL_STEPS} · No cap on this list
               </p>
             </div>
 
-            {/* Step 1 — Connect X */}
-            <StepShell index={1} total={3} title="Connect Your X Account" subtitle="Identity" done={c1} locked={false}>
-              {!c1 ? (
-                <>
-                  <p style={{ margin: "0 0 10px", fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
-                    Sign in with X to verify it's really you. This opens X's own login screen.
-                  </p>
+            {/* carousel */}
+            <div style={{ overflow: "hidden", flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  width: `${TOTAL_STEPS * 100}%`,
+                  transform: `translateX(-${(step * 100) / TOTAL_STEPS}%)`,
+                  transition: "transform 0.42s cubic-bezier(0.65,0,0.35,1)",
+                }}
+              >
+                {/* step 0 */}
+                <div style={{ width: `${100 / TOTAL_STEPS}%`, padding: "0 22px 4px", boxSizing: "border-box", overflowY: "auto", maxHeight: "58vh" }}>
+                  <TextQuestion n="01" label="Why do you want to be whitelisted for Folks?" value={why} onChange={setWhy} />
+                  <TextQuestion n="02" label="What makes you a valuable member of the Folks community?" value={valuable} onChange={setValuable} />
+                  <YesNoQuestion
+                    n="03"
+                    label="Are you an NFT collector?"
+                    value={isCollector}
+                    onChange={setIsCollector}
+                    detailValue={collectorDetail}
+                    onDetailChange={setCollectorDetail}
+                    detailPlaceholder="Which chains or collections do you mainly collect?"
+                  />
+                </div>
+
+                {/* step 1 */}
+                <div style={{ width: `${100 / TOTAL_STEPS}%`, padding: "0 22px 4px", boxSizing: "border-box", overflowY: "auto", maxHeight: "58vh" }}>
+                  <YesNoQuestion
+                    n="04"
+                    label="Have you launched or contributed to an NFT/web3 project before?"
+                    value={hasContributed}
+                    onChange={setHasContributed}
+                    detailValue={contributedDetail}
+                    onDetailChange={setContributedDetail}
+                    detailPlaceholder="Tell us about it."
+                  />
+                  <TextQuestion n="05" label="How do you plan to support Folks after mint?" value={supportPlan} onChange={setSupportPlan} />
+                </div>
+
+                {/* step 2 — tasks + identity */}
+                <div style={{ width: `${100 / TOTAL_STEPS}%`, padding: "0 22px 4px", boxSizing: "border-box", overflowY: "auto", maxHeight: "58vh" }}>
+                  <TaskRow
+                    label="STEP 06 — Follow us on X"
+                    actionLabel="Follow"
+                    actionHref={X_URL}
+                    confirmed={followConfirmed}
+                    ready={followed}
+                    onOpen={() => setFollowed(true)}
+                    onConfirm={() => setFollowConfirmed(true)}
+                  />
+                  <TaskRow
+                    label="STEP 07 — Like the pinned post"
+                    actionLabel="Open Post"
+                    actionHref={PINNED_TWEET_URL}
+                    confirmed={likeConfirmed}
+                    ready={liked}
+                    onOpen={() => setLiked(true)}
+                    onConfirm={() => setLikeConfirmed(true)}
+                  />
+                  <div style={{ border: `1px solid ${violetLine}`, borderRadius: "10px", padding: "14px", marginBottom: "10px" }}>
+                    <p style={{ margin: "0 0 8px", fontFamily: mono, fontSize: "0.68rem", letterSpacing: "0.06em", color: muted }}>STEP 08 — Comment and tag two friends</p>
+                    <a
+                      href={PINNED_TWEET_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "block",
+                        textAlign: "center",
+                        fontFamily: mono,
+                        fontSize: "0.64rem",
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "#fff",
+                        border: `1px solid ${violetLight}55`,
+                        borderRadius: "7px",
+                        padding: "9px",
+                        textDecoration: "none",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      Open Post
+                    </a>
+                    <input
+                      placeholder="https://x.com/you/status/..."
+                      value={commentUrl}
+                      disabled={commentConfirmed}
+                      onChange={(e) => setCommentUrl(e.target.value)}
+                      style={inputStyle}
+                    />
+                    {commentUrl && !isValidUrl(commentUrl) && <p style={{ fontSize: "0.66rem", color: "#d96b5a", margin: "6px 0 0" }}>Needs a valid https:// link.</p>}
+                    {isValidUrl(commentUrl) && !commentConfirmed && (
+                      <button
+                        onClick={() => setCommentConfirmed(true)}
+                        style={{
+                          marginTop: "8px",
+                          width: "100%",
+                          fontFamily: mono,
+                          fontSize: "0.62rem",
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          color: ink,
+                          background: violet,
+                          border: "none",
+                          borderRadius: "7px",
+                          padding: "8px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Confirm Link
+                      </button>
+                    )}
+                    {commentConfirmed && <p style={{ fontSize: "0.66rem", color: violet, margin: "8px 0 0" }}>Confirmed.</p>}
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <QLabel n="09">What is your X (Twitter) username?</QLabel>
+                    <input placeholder="@yourhandle" value={twitterUsername} onChange={(e) => setTwitterUsername(e.target.value)} style={{ ...inputStyle, fontFamily: mono }} />
+                  </div>
+
+                  <div style={{ marginBottom: "6px" }}>
+                    <QLabel n="10">What is your wallet address?</QLabel>
+                    <input placeholder="0x..." value={wallet} disabled={walletConfirmed} onChange={(e) => setWallet(e.target.value)} style={{ ...inputStyle, fontFamily: mono }} />
+                    {wallet && !isValidEvm(wallet) && <p style={{ fontSize: "0.66rem", color: "#d96b5a", margin: "6px 0 0" }}>Not a valid EVM address.</p>}
+                    {isValidEvm(wallet) && !walletConfirmed && (
+                      <button
+                        onClick={() => setWalletConfirmed(true)}
+                        style={{
+                          marginTop: "8px",
+                          width: "100%",
+                          fontFamily: mono,
+                          fontSize: "0.62rem",
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          color: ink,
+                          background: violet,
+                          border: "none",
+                          borderRadius: "7px",
+                          padding: "8px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Confirm Wallet
+                      </button>
+                    )}
+                    {walletConfirmed && <p style={{ fontSize: "0.66rem", color: violet, margin: "8px 0 0" }}>Confirmed.</p>}
+                    <p style={{ fontSize: "0.64rem", color: "rgba(245,247,245,0.3)", margin: "8px 0 0", lineHeight: 1.4 }}>Never share your private key or seed phrase.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* footer controls */}
+            <div style={{ padding: "16px 22px 22px" }}>
+              {err && <p style={{ fontSize: "0.78rem", color: "#d96b5a", margin: "0 0 10px" }}>{err}</p>}
+              <div style={{ display: "flex", gap: "8px" }}>
+                {step > 0 && (
                   <button
-                    onClick={connectX}
-                    disabled={connecting}
+                    onClick={goBack}
                     style={{
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: mono,
+                      fontSize: "0.72rem",
+                      color: "#fff",
+                      background: "transparent",
+                      border: `1px solid ${violetLight}55`,
+                      borderRadius: "8px",
+                      padding: "0 16px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <IconArrow dir="left" />
+                  </button>
+                )}
+                {step < TOTAL_STEPS - 1 ? (
+                  <button
+                    disabled={!stepValid}
+                    onClick={goNext}
+                    style={{
+                      flex: 1,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       gap: "8px",
-                      width: "100%",
-                      background: connecting ? "rgba(255,255,255,0.02)" : "#fff",
-                      border: `1px solid ${line}`,
-                      borderRadius: "5px",
-                      padding: "10px",
-                      color: connecting ? "rgba(247,245,239,0.4)" : "#0a0a08",
-                      fontFamily: body,
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.06em",
-                      cursor: connecting ? "wait" : "pointer",
+                      fontFamily: mono,
+                      fontWeight: 600,
+                      fontSize: "0.72rem",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: stepValid ? ink : "rgba(245,247,245,0.3)",
+                      background: stepValid ? violet : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${stepValid ? violet : violetLine}`,
+                      borderRadius: "8px",
+                      padding: "14px",
+                      cursor: stepValid ? "pointer" : "not-allowed",
                     }}
                   >
-                    <StepIcon kind="connect" />
-                    {connecting ? "Opening X..." : "Connect X Account"}
+                    Next <IconArrow />
                   </button>
-                  {authError && (
-                    <p style={{ fontFamily: body, fontSize: "0.6rem", color: "#d96b5a", margin: "6px 0 0" }}>{authError}</p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Connected as @{handle}</p>
+                ) : (
                   <button
-                    onClick={auth.signOut}
+                    disabled={!step2Valid || sending}
+                    onClick={submit}
                     style={{
-                      marginTop: "6px",
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      fontFamily: body,
-                      fontSize: "0.6rem",
-                      color: faint,
-                      textDecoration: "underline",
+                      flex: 1,
+                      fontFamily: mono,
+                      fontWeight: 600,
+                      fontSize: "0.72rem",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: step2Valid ? ink : "rgba(245,247,245,0.3)",
+                      background: step2Valid ? violet : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${step2Valid ? violet : violetLine}`,
+                      borderRadius: "8px",
+                      padding: "14px",
+                      cursor: step2Valid && !sending ? "pointer" : "not-allowed",
                     }}
                   >
-                    Not you? Disconnect
+                    {sending ? "Submitting..." : "Submit Application"}
                   </button>
-                </>
-              )}
-            </StepShell>
-
-            {/* Step 2 — Social tasks */}
-            <StepShell index={2} total={3} title="Complete Social Tasks" subtitle="Engagement" done={c2} locked={!c1}>
-              {!c2 ? (
-                <>
-                  <p style={{ margin: "0 0 10px", fontFamily: body, fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
-                    Each button opens X — come back and it'll check off on its own.
-                  </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <TaskRow
-                      label="Follow @thefolkseth_"
-                      done={followed}
-                      locked={false}
-                      onClick={() => {
-                        window.open(FOLLOW_URL, "_blank");
-                        setTimeout(() => setFollowed(true), 900);
-                      }}
-                    />
-                    <TaskRow
-                      label="Like the pinned post"
-                      done={liked}
-                      locked={!followed}
-                      onClick={() => {
-                        window.open(LIKE_URL, "_blank");
-                        setTimeout(() => setLiked(true), 900);
-                      }}
-                    />
-                    <TaskRow
-                      label="Retweet the pinned post"
-                      done={retweeted}
-                      locked={!liked}
-                      onClick={() => {
-                        window.open(RETWEET_URL, "_blank");
-                        setTimeout(() => setRetweeted(true), 900);
-                      }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>All tasks complete</p>
-              )}
-            </StepShell>
-
-            {/* Step 3 — Wallet (fades in once step 2 is done) */}
-            <StepShell index={3} total={3} title="Register Your Wallet" subtitle="Registry Entry" done={c3} locked={!c2}>
-              {!c3 ? (
-                <>
-                  <p style={{ ...microLabel, margin: "0 0 6px" }}>EVM address</p>
-                  <input
-                    type="text"
-                    placeholder="0x..."
-                    value={wallet}
-                    onChange={(e) => setWallet(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && isValidEvm(wallet)) setWalletConfirmed(true);
-                    }}
-                    style={inputStyle}
-                    onFocus={focusInp}
-                    onBlur={blurInp}
-                  />
-                  {wallet && !isValidEvm(wallet) && (
-                    <p style={{ fontFamily: body, fontSize: "0.6rem", color: "#d96b5a", margin: "5px 0 0" }}>Invalid address.</p>
-                  )}
-                  {isValidEvm(wallet) && (
-                    <button onClick={() => setWalletConfirmed(true)} style={confirmBtn}>
-                      Confirm Wallet
-                    </button>
-                  )}
-                  <p style={{ fontFamily: body, fontSize: "0.58rem", color: faint, margin: "8px 0 0", lineHeight: 1.4 }}>
-                    Never share private keys or seed phrases.
-                  </p>
-                </>
-              ) : (
-                <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Wallet registered</p>
-              )}
-            </StepShell>
-
-            {err && <p style={{ fontFamily: body, fontSize: "0.78rem", color: "#d96b5a", margin: "4px 0 10px", fontWeight: 500 }}>{err}</p>}
-
-            <button
-              onClick={submit}
-              disabled={sending || !allDone}
-              style={{
-                width: "100%",
-                background: allDone ? `linear-gradient(180deg,${goldLight},${gold})` : "rgba(255,255,255,0.04)",
-                color: allDone ? ink : "rgba(247,245,239,0.2)",
-                border: `1px solid ${allDone ? gold : "rgba(255,255,255,0.06)"}`,
-                borderRadius: "6px",
-                padding: "15px",
-                fontFamily: body,
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                letterSpacing: "0.16em",
-                textTransform: "uppercase",
-                cursor: allDone && !sending ? "pointer" : "not-allowed",
-                transition: "all 0.3s ease",
-                boxShadow: allDone ? `0 8px 24px ${gold}30` : "none",
-                marginTop: "4px",
-              }}
-            >
-              {sending ? "Submitting..." : allDone ? "Join The Folkslist" : "Complete every step to unlock"}
-            </button>
+                )}
+              </div>
+            </div>
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function StatusView({
-  eyebrow,
-  title,
-  body,
-  onClose,
-  seal,
-}: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  onClose: () => void;
-  seal?: boolean;
-}) {
-  return (
-    <div style={{ textAlign: "center", padding: "34px 0 8px" }}>
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
-        {seal ? (
-          <FolksSeal size={50} />
-        ) : (
-          <div
-            style={{
-              width: "50px",
-              height: "50px",
-              borderRadius: "50%",
-              background: gold,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg width="20" height="16" viewBox="0 0 22 18" fill="none">
-              <path d="M2 9L8 15L20 2" stroke={ink} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        )}
-      </div>
-      <p style={{ fontFamily: mono, fontSize: "0.58rem", letterSpacing: "0.22em", textTransform: "uppercase", color: gold, margin: "0 0 6px" }}>
-        {eyebrow}
-      </p>
-      <h2 style={{ fontFamily: display, fontSize: "1.5rem", fontWeight: 650, color: "#fff", margin: "0 0 10px" }}>{title}</h2>
-      <p style={{ fontFamily: display, fontStyle: "italic", fontSize: "0.9rem", color: muted, margin: 0, lineHeight: 1.6, maxWidth: "320px", marginLeft: "auto", marginRight: "auto" }}>
-        {body}
-      </p>
-      <button
-        onClick={onClose}
-        style={{
-          marginTop: "24px",
-          fontFamily: body,
-          fontSize: "0.66rem",
-          fontWeight: 700,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: ink,
-          background: gold,
-          border: "none",
-          borderRadius: "5px",
-          padding: "11px 26px",
-          cursor: "pointer",
-        }}
-      >
-        Back To Home
-      </button>
     </div>
   );
 }
