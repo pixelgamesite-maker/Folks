@@ -1,9 +1,9 @@
-import { body, display, gold, ink } from "../lib/theme";
+import { display, gold } from "../lib/theme";
 import { FolksSeal } from "./shared";
 
 export const X_URL = "https://x.com/thefolkseth_";
 
-export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
+export default function Header() {
   return (
     <header
       style={{
@@ -20,7 +20,7 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
         background: "rgba(5,6,5,0.86)",
         backdropFilter: "blur(22px)",
         WebkitBackdropFilter: "blur(22px)",
-        borderBottom: "1px solid rgba(0,200,5,0.14)",
+        borderBottom: "1px solid rgba(46,125,74,0.14)",
       }}
     >
       <a href="#home" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
@@ -38,25 +38,7 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
         </span>
       </a>
 
-      <nav style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <button
-          onClick={onOpenModal}
-          style={{
-            fontFamily: body,
-            fontSize: "0.68rem",
-            fontWeight: 700,
-            letterSpacing: "0.04em",
-            color: ink,
-            background: gold,
-            border: "none",
-            borderRadius: "6px",
-            padding: "9px 16px",
-            cursor: "pointer",
-          }}
-        >
-          Claim Early Role
-        </button>
-
+      <nav style={{ display: "flex", alignItems: "center" }}>
         <a
           href={X_URL}
           target="_blank"
@@ -70,7 +52,7 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
             height: "34px",
             borderRadius: "6px",
             color: "rgba(245,247,245,0.55)",
-            border: "1px solid rgba(0,200,5,0.2)",
+            border: "1px solid rgba(46,125,74,0.2)",
             transition: "all 0.2s",
             flexShrink: 0,
           }}
@@ -78,12 +60,12 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
             const el = e.currentTarget as HTMLAnchorElement;
             el.style.color = "#fff";
             el.style.borderColor = `${gold}88`;
-            el.style.background = "rgba(0,200,5,0.08)";
+            el.style.background = "rgba(46,125,74,0.08)";
           }}
           onMouseLeave={(e) => {
             const el = e.currentTarget as HTMLAnchorElement;
             el.style.color = "rgba(245,247,245,0.55)";
-            el.style.borderColor = "rgba(0,200,5,0.2)";
+            el.style.borderColor = "rgba(46,125,74,0.2)";
             el.style.background = "transparent";
           }}
         >
