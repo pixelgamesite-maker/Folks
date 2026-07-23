@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
 import { body, FONT_LINK, gold, ink } from "../lib/theme";
+import { consumeReopenFlag } from "../hooks/useAuth";
 
 import Header from "../components/Header";
 import Hero from "../components/Hero";
 import { Divider } from "../components/shared";
-import MeetFolks from "../components/MeetFolks";
-import Traits from "../components/Traits";
-import Ranks from "../components/Ranks";
-import Systems from "../components/Systems";
-import FolksListCTA from "../components/FolksListCTA";
-import MintSection from "../components/MintSection";
-import Reserve from "../components/Reserve";
-import Roadmap from "../components/Roadmap";
+import About from "../components/About";
 import FAQ from "../components/FAQ";
 import Footer from "../components/Footer";
 import WhitelistModal from "../components/WhitelistModal";
@@ -29,13 +23,17 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    if (consumeReopenFlag()) setModalOpen(true);
+  }, []);
+
   return (
     <div style={{ background: ink, minHeight: "100vh", fontFamily: body, color: "#fff", overflowX: "hidden" }}>
       <style>{`
         @keyframes folksFadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
         @keyframes folksModalIn { from{opacity:0;transform:scale(0.96) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
         *{box-sizing:border-box;}
-        ::placeholder{color:rgba(247,245,239,0.22);}
+        ::placeholder{color:rgba(245,247,245,0.22);}
         ::-webkit-scrollbar{width:3px;}
         ::-webkit-scrollbar-thumb{background:${gold}44;border-radius:4px;}
         html{scroll-behavior:smooth;}
@@ -46,24 +44,10 @@ export default function Home() {
       <Hero onOpenModal={() => setModalOpen(true)} />
 
       <Divider />
-      <MeetFolks />
-      <Divider />
-      <Traits />
-      <Divider />
-      <Ranks />
-      <Divider />
-      <Systems />
-      <Divider />
-      <FolksListCTA onOpenModal={() => setModalOpen(true)} />
-      <Divider />
-      <MintSection />
-      <Divider />
-      <Reserve />
-      <Divider />
-      <Roadmap />
+      <About />
       <Divider />
       <FAQ />
-      <Divider />
+
       <Footer />
 
       <WhitelistModal open={modalOpen} onClose={() => setModalOpen(false)} />
