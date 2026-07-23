@@ -17,10 +17,10 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        background: "rgba(6,6,5,0.86)",
+        background: "rgba(5,6,5,0.86)",
         backdropFilter: "blur(22px)",
         WebkitBackdropFilter: "blur(22px)",
-        borderBottom: "1px solid rgba(201,162,39,0.14)",
+        borderBottom: "1px solid rgba(0,200,5,0.14)",
       }}
     >
       <a href="#home" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
@@ -28,70 +28,34 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
         <span
           style={{
             fontFamily: display,
-            fontSize: "1.15rem",
-            fontWeight: 600,
+            fontSize: "1.1rem",
+            fontWeight: 700,
             color: "#fff",
-            letterSpacing: "0.12em",
+            letterSpacing: "0.02em",
           }}
         >
           FOLKS
         </span>
       </a>
 
-      <nav style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-        {([
-          ["Folkslist", "#folkslist"],
-          ["Mint", "#mint"],
-          ["Questions", "#questions"],
-        ] as [string, string][]).map(([l, h]) => (
-          <a
-            key={l}
-            href={h}
-            style={{
-              fontFamily: body,
-              fontSize: "0.64rem",
-              fontWeight: 600,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "rgba(247,245,239,0.5)",
-              padding: "8px 13px",
-              borderRadius: "5px",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.color = "#fff";
-              (e.currentTarget as HTMLAnchorElement).style.background = "rgba(201,162,39,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.color = "rgba(247,245,239,0.5)";
-              (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-            }}
-          >
-            {l}
-          </a>
-        ))}
-
+      <nav style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <button
           onClick={onOpenModal}
           style={{
-            marginLeft: "10px",
             fontFamily: body,
-            fontSize: "0.62rem",
+            fontSize: "0.68rem",
             fontWeight: 700,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            letterSpacing: "0.04em",
             color: ink,
             background: gold,
             border: "none",
-            borderRadius: "5px",
+            borderRadius: "6px",
             padding: "9px 16px",
             cursor: "pointer",
           }}
         >
           Claim Early Role
         </button>
-
-        <div style={{ width: "1px", height: "16px", background: "rgba(201,162,39,0.2)", margin: "0 6px" }} />
 
         <a
           href={X_URL}
@@ -104,9 +68,9 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
             justifyContent: "center",
             width: "34px",
             height: "34px",
-            borderRadius: "5px",
-            color: "rgba(247,245,239,0.5)",
-            border: "1px solid rgba(201,162,39,0.2)",
+            borderRadius: "6px",
+            color: "rgba(245,247,245,0.55)",
+            border: "1px solid rgba(0,200,5,0.2)",
             transition: "all 0.2s",
             flexShrink: 0,
           }}
@@ -114,12 +78,12 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
             const el = e.currentTarget as HTMLAnchorElement;
             el.style.color = "#fff";
             el.style.borderColor = `${gold}88`;
-            el.style.background = "rgba(201,162,39,0.06)";
+            el.style.background = "rgba(0,200,5,0.08)";
           }}
           onMouseLeave={(e) => {
             const el = e.currentTarget as HTMLAnchorElement;
-            el.style.color = "rgba(247,245,239,0.5)";
-            el.style.borderColor = "rgba(201,162,39,0.2)";
+            el.style.color = "rgba(245,247,245,0.55)";
+            el.style.borderColor = "rgba(0,200,5,0.2)";
             el.style.background = "transparent";
           }}
         >
