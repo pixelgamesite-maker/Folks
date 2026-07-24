@@ -10,8 +10,6 @@ const X_URL = `https://x.com/${X_HANDLE}`;
 const PINNED_TWEET_URL = "https://x.com/thefolkseth_/status/REPLACE_WITH_PINNED_TWEET_ID";
 
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
-const QUOTE_TEXT = "Bullish on @thefolkseth_. Ten thousand folks, one registry.";
-const QUOTE_URL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(QUOTE_TEXT)}&url=${encodeURIComponent(PINNED_TWEET_URL)}`;
 
 const APPLICATIONS_TABLE = "folks_whitelist_applications";
 const STORAGE_KEY = "folks_wl_draft_v3";
@@ -385,8 +383,8 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
             <LinkTaskRow
               n="03"
               label="Quote with a bullish caption, tag Folks"
-              actionLabel="Quote Tweet"
-              actionHref={QUOTE_URL}
+              actionLabel="Open Post"
+              actionHref={PINNED_TWEET_URL}
               placeholder="https://x.com/you/status/..."
               value={quoteUrl}
               onChange={setQuoteUrl}
