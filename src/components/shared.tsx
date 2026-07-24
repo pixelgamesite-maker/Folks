@@ -110,26 +110,20 @@ export function Divider() {
 /* ── The Folks seal — signature emblem used in header, hero & modal ── */
 export function FolksSeal({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <circle cx="32" cy="32" r="30.5" stroke={gold} strokeWidth="1" />
-      <circle cx="32" cy="32" r="25" stroke={gold} strokeWidth="0.6" opacity="0.55" />
-      {Array.from({ length: 24 }).map((_, i) => {
-        const a = (i / 24) * Math.PI * 2;
-        const x1 = 32 + Math.cos(a) * 27.5;
-        const y1 = 32 + Math.sin(a) * 27.5;
-        const x2 = 32 + Math.cos(a) * 30.5;
-        const y2 = 32 + Math.sin(a) * 30.5;
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={gold} strokeWidth="0.6" opacity="0.5" />;
-      })}
-      <text
-        x="32"
-        y="38"
-        textAnchor="middle"
-        style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "19px", fill: gold }}
-      >
-        F
-      </text>
-    </svg>
+    <img
+      src="/Folks-logo.png"
+      alt="Folks"
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        objectFit: "cover",
+        border: `1px solid ${gold}55`,
+        display: "block",
+      }}
+    />
   );
 }
 
