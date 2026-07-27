@@ -3,7 +3,7 @@ import { body, display, faint, gold, goldLight, ink, line, mono, muted, violet, 
 import { FolksSeal, Guilloche } from "./shared";
 import { useEarlyRoleCount } from "../hooks/useEarlyRoleCount";
 
-const TICKER_ITEMS = ["OPENSEA", "SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ROBINHOOD"];
+const TICKER_ITEMS = ["OPENSEA", "SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ETHEREUM"];
 
 export default function Hero({
   onOpenEarlyRole,
