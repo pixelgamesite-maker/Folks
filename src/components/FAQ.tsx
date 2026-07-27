@@ -6,7 +6,7 @@ const FAQS = [
   { q: "What is the Folkslist?", a: "The only way to get whitelisted before mint — connect your X account, complete the tasks, and register your wallet." },
   { q: "Why does connecting X matter?", a: "It verifies you're a real account, not a duplicate or a bot, before you take a spot on the list." },
   { q: "What tasks do I need to complete?", a: "Follow the official account, like and retweet the pinned post, then submit your wallet." },
-  { q: "Is there a limit on the Folkslist?", a: "Yes — 1,000 spots total. Once they're gone, you'll need to wait for the public mint." },
+  { q: "Is there a limit to claim early role?", a: "Yes, 1,000 spots total for early believers" },
 ];
 
 function FaqItem({ q, a }: { q: string; a: string }) {
