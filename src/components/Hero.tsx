@@ -3,7 +3,7 @@ import { body, display, faint, gold, goldLight, ink, line, mono, muted, violet, 
 import { FolksSeal, Guilloche } from "./shared";
 import { useEarlyRoleCount } from "../hooks/useEarlyRoleCount";
 
-const TICKER_ITEMS = ["ETHEREUM", "OPENSEA", "SUPPLY: TBA", "PRICE: TBA"];
+const TICKER_ITEMS = ["OPENSEA", "SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ROBINHOOD"];
 
 export default function Hero({
   onOpenEarlyRole,
@@ -84,21 +84,15 @@ export default function Hero({
         />
 
         <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: "420px" }}>
-          {/* Seal + eyebrow, side by side instead of stacked */}
+          {/* Logo alone, centered, directly above the wordmark */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "28px",
+              marginBottom: "20px",
               opacity: ready ? undefined : 0,
               animation: ready ? "folksFadeUp 0.7s ease 0.05s both" : "none",
             }}
           >
-            <FolksSeal size={30} />
-            <span style={{ fontFamily: mono, fontSize: "0.6rem", letterSpacing: "0.2em", textTransform: "uppercase", color: faint }}>
-              Registry &middot; 10,000 Folks
-            </span>
+            <FolksSeal size={72} />
           </div>
 
           <h1
@@ -128,7 +122,7 @@ export default function Hero({
               animation: ready ? "folksFadeUp 0.7s ease 0.18s both" : "none",
             }}
           >
-            Built for the folks who showed up first — before Robinhood does.
+            Built for the folks who showed up first.
           </p>
 
           {/* One console-style card holds every functional element, instead
