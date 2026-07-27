@@ -14,7 +14,7 @@ export default function Footer() {
         FOLKS
       </h3>
       <p style={{ fontFamily: display, fontSize: "0.82rem", color: "rgba(245,247,245,0.32)", margin: "0 0 22px" }}>
-        Ten thousand folks. Launching on Robinhood.
+        Three thousand folks. Launching on Robinhood.
       </p>
 
       <div style={{ display: "flex", gap: "14px", justifyContent: "center", marginBottom: "18px" }}>
