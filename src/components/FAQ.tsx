@@ -3,14 +3,10 @@ import { body, display, gold, line, muted } from "../lib/theme";
 import { Label, RevealSection } from "./shared";
 
 const FAQS = [
-  { q: "What is Folks?", a: "A 10,000-member registry of hand-composed characters, launching on Robinhood." },
   { q: "What is the Folkslist?", a: "The only way to get whitelisted before mint — connect your X account, complete the tasks, and register your wallet." },
   { q: "Why does connecting X matter?", a: "It verifies you're a real account, not a duplicate or a bot, before you take a spot on the list." },
   { q: "What tasks do I need to complete?", a: "Follow the official account, like and retweet the pinned post, then submit your wallet." },
   { q: "Is there a limit on the Folkslist?", a: "Yes — 1,000 spots total. Once they're gone, you'll need to wait for the public mint." },
-  { q: "What is the mint price?", a: "To be announced once the Folkslist closes." },
-  { q: "Where does mint happen?", a: "OpenSea, on Ethereum." },
-  { q: "Is this financial advice?", a: "No. Folks is a digital collectible. Do your own research." },
 ];
 
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -22,7 +18,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
         borderRadius: "10px",
         marginBottom: "8px",
         overflow: "hidden",
-        background: "rgba(0,200,5,0.02)",
+        background: "rgba(46,125,74,0.02)",
       }}
     >
       <button
