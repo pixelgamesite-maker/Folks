@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { body, FONT_LINK, gold, ink } from "../lib/theme";
-import { consumeReopenFlag } from "../hooks/useAuth";
+import { consumePostAuthAction } from "../hooks/useAuth";
 
 import Header from "../components/Header";
 import Hero from "../components/Hero";
@@ -28,7 +28,7 @@ export default function Home() {
   // Only Early Role uses real X OAuth, so only it needs to reopen after the
   // /auth/callback redirect brings the person back to this page.
   useEffect(() => {
-    if (consumeReopenFlag()) setEarlyRoleOpen(true);
+    if (consumePostAuthAction() === "early_role") setEarlyRoleOpen(true);
   }, []);
 
   return (
