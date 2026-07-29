@@ -17,95 +17,71 @@ const INTENT_URL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(I
 
 /** Renamed from folks_whitelist — see folks_rename_early_role.sql. */
 const EARLY_ROLE_TABLE = "folks_early_role";
-
-const STORAGE_KEY = "folks_early_role_v1";
-const SUBMITTED_KEY = "folks_early_role_submitted";
 const EARLY_ROLE_CAP = 1000;
 
-/* ── Small step icons — plain geometric marks, no emoji ── */
-function StepIcon({ kind }: { kind: "connect" | "post" | "wallet" }) {
-  const common = { width: 16, height: 16, stroke: gold, strokeWidth: 1.4, fill: "none" } as const;
-  if (kind === "connect")
-    return (
-      <svg viewBox="0 0 24 24" {...common}>
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25z" strokeLinejoin="round" />
-      </svg>
-    );
-  if (kind === "post")
-    return (
-      <svg viewBox="0 0 24 24" {...common}>
-        <path d="M4 4l16 8-16 8 4-8-4-8z" strokeLinejoin="round" />
-      </svg>
-    );
+/**
+ * Draft (in-progress tweet link / wallet input) is scoped per signed-in
+ * user, not a single shared key — otherwise a second X account on the same
+ * browser would see the first person's half-typed wallet address. There is
+ * no separate "already submitted" flag in localStorage anymore: that's
+ * checked live against the database (below), which is the only thing that
+ *'s actually authoritative, and can't go stale or leak across accounts the
+ * way a cached flag can.
+ */
+function draftKey(userId: string) {
+  return `folks_early_role_draft_${userId}`;
+}
+
+/* ── Small icon for the connect button ── */
+function ConnectIcon() {
   return (
-    <svg viewBox="0 0 24 24" {...common}>
-      <rect x="3" y="6" width="18" height="13" rx="2" />
-      <path d="M3 9h18" />
-      <circle cx="16" cy="13.5" r="1.1" fill={gold} stroke="none" />
+    <svg width={16} height={16} viewBox="0 0 24 24" stroke={gold} strokeWidth={1.4} fill="none">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.259 5.63L18.244 2.25z" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function StepShell({
-  index,
-  total,
-  title,
-  subtitle,
-  done,
-  locked,
-  children,
-}: {
-  index: number;
-  total: number;
-  title: string;
-  subtitle: string;
-  done: boolean;
-  locked: boolean;
-  children: React.ReactNode;
-}) {
+function Card({ children, done, locked }: { children: React.ReactNode; done?: boolean; locked?: boolean }) {
   if (locked) return null;
   return (
     <div
       style={{
         border: `1px solid ${done ? `${gold}55` : line}`,
-        borderRadius: "10px",
-        padding: "16px 16px 15px",
-        marginBottom: "12px",
-        background: done ? "linear-gradient(160deg,#0f1710 0%,#0a0d0a 100%)" : "linear-gradient(160deg,#0d100d 0%,#0a0d0a 100%)",
-        animation: "folksFadeUp 0.45s ease both",
-        boxShadow: done ? `0 0 22px ${gold}12` : "none",
+        borderRadius: "12px",
+        padding: "14px",
+        marginBottom: "10px",
+        background: "rgba(46,125,74,0.03)",
+        boxShadow: done ? `0 0 18px ${gold}10` : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-        <div
+      {children}
+    </div>
+  );
+}
+
+function CardHeader({ n, title, done }: { n: string; title: string; done: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+      <p style={{ margin: 0, ...microLabel, color: "rgba(245,247,245,0.6)" }}>
+        <span style={{ color: gold }}>{n}</span> {title}
+      </p>
+      {done && (
+        <span
           style={{
-            width: "26px",
-            height: "26px",
+            width: "16px",
+            height: "16px",
             borderRadius: "50%",
-            border: `1px solid ${done ? gold : line}`,
+            background: gold,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            flexShrink: 0,
-            background: done ? gold : "transparent",
           }}
         >
-          {done ? (
-            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-              <path d="M1 4.5L4 7.5L10 1" stroke={ink} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          ) : (
-            <span style={{ fontFamily: mono, fontSize: "0.66rem", color: gold }}>{index}</span>
-          )}
-        </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontFamily: display, fontSize: "0.98rem", fontWeight: 600, color: "#fff" }}>{title}</p>
-          <p style={{ margin: 0, fontFamily: mono, fontSize: "0.56rem", letterSpacing: "0.1em", textTransform: "uppercase", color: faint }}>
-            {subtitle} · Step {index} of {total}
-          </p>
-        </div>
-      </div>
-      {children}
+          <svg width="8" height="6" viewBox="0 0 9 7" fill="none">
+            <path d="M1 3.5L3.2 5.8L8 1" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      )}
     </div>
   );
 }
@@ -152,11 +128,11 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
   const [wallet, setWallet] = useState("");
   const [walletConfirmed, setWalletConfirmed] = useState(false);
 
-  const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [err, setErr] = useState("");
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [checkingSubmitted, setCheckingSubmitted] = useState(false);
   const [claimedCount, setClaimedCount] = useState<number | null>(null);
   const [full, setFull] = useState(false);
   const [entryNumber, setEntryNumber] = useState<number | null>(null);
@@ -176,47 +152,50 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
     };
   }, [open]);
 
+  /* Draft persistence — only once we know who's signed in, keyed to them. */
   useEffect(() => {
+    if (!auth.user) return;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(draftKey(auth.user.id));
       if (saved) {
         const p = JSON.parse(saved);
         setTweetUrl(p.tweetUrl ?? "");
         setPosted(!!p.posted);
         setWallet(p.wallet ?? "");
       }
-      if (localStorage.getItem(SUBMITTED_KEY) === "true") setAlreadySubmitted(true);
     } catch {}
-    setReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ tweetUrl, posted, wallet }));
-    } catch {}
-  }, [tweetUrl, posted, wallet, ready]);
+  }, [auth.user?.id]);
 
   useEffect(() => {
     if (!auth.user) return;
+    try {
+      localStorage.setItem(draftKey(auth.user.id), JSON.stringify({ tweetUrl, posted, wallet }));
+    } catch {}
+  }, [tweetUrl, posted, wallet, auth.user?.id]);
+
+  /* The real "already applied" check — live against the database, not a cached flag. */
+  useEffect(() => {
+    if (!auth.user) return;
     let cancelled = false;
+    setCheckingSubmitted(true);
     (async () => {
       const { data, error } = await supabase
         .from(EARLY_ROLE_TABLE)
-        .select("id")
+        .select("id, entry_number")
         .eq("user_id", auth.user!.id)
         .maybeSingle();
-      if (!cancelled && !error && data) {
-        setAlreadySubmitted(true);
-        try {
-          localStorage.setItem(SUBMITTED_KEY, "true");
-        } catch {}
+      if (!cancelled) {
+        if (!error && data) {
+          setAlreadySubmitted(true);
+          if (data.entry_number) setEntryNumber(data.entry_number);
+        }
+        setCheckingSubmitted(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [auth.user]);
+  }, [auth.user?.id]);
 
   const c1 = !!auth.user;
   const c2 = posted && isValidTweetUrl(tweetUrl);
@@ -249,22 +228,16 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
         setFull(true);
         setClaimedCount(EARLY_ROLE_CAP);
       } else if (error.code === "23505") {
-        // Row already exists for this user_id or wallet — they've applied before,
-        // localStorage just didn't know about it (cleared, different device, etc).
+        // Row already exists for this user_id or wallet — checked live above,
+        // this just catches a race (two tabs submitting at once, etc).
         setErr("");
         setAlreadySubmitted(true);
-        try {
-          localStorage.setItem(SUBMITTED_KEY, "true");
-        } catch {}
       } else {
         setErr("Something went wrong. Please try again.");
       }
     } else {
       if (data?.entry_number) setEntryNumber(data.entry_number);
       setSuccess(true);
-      try {
-        localStorage.setItem(SUBMITTED_KEY, "true");
-      } catch {}
       setAlreadySubmitted(true);
     }
   }
@@ -300,7 +273,7 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
       <div
         style={{
           width: "100%",
-          maxWidth: "440px",
+          maxWidth: "420px",
           maxHeight: "94vh",
           overflowY: "auto",
           background: "#0a0d0a",
@@ -329,7 +302,11 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
           ✕
         </button>
 
-        {alreadySubmitted ? (
+        {checkingSubmitted ? (
+          <div style={{ textAlign: "center", padding: "50px 0" }}>
+            <p style={{ fontFamily: mono, fontSize: "0.68rem", color: muted }}>Checking your status...</p>
+          </div>
+        ) : alreadySubmitted ? (
           <StatusView
             seal
             eyebrow="Already Registered"
@@ -363,12 +340,12 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
           />
         ) : (
           <>
-            <div style={{ marginBottom: "20px" }}>
+            <div style={{ marginBottom: "18px" }}>
               <p style={{ ...microLabel, color: gold, margin: "0 0 4px" }}>Early Role Application</p>
-              <h2 style={{ fontFamily: display, fontSize: "1.44rem", fontWeight: 650, color: "#fff", margin: "0 0 4px", letterSpacing: "0.01em" }}>
+              <h2 style={{ fontFamily: display, fontSize: "1.4rem", fontWeight: 650, color: "#fff", margin: "0 0 4px", letterSpacing: "0.01em" }}>
                 Claim Your Early Role
               </h2>
-              <p style={{ fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, margin: "0 0 14px", lineHeight: 1.5 }}>
+              <p style={{ fontFamily: body, fontSize: "0.82rem", color: muted, margin: "0 0 14px", lineHeight: 1.5 }}>
                 Connect your X account, post a bullish tweet, then register your wallet. Capped at 1,000.
               </p>
               <div style={{ height: "2px", background: `${gold}18`, borderRadius: "2px", overflow: "hidden" }}>
@@ -388,11 +365,12 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
               </p>
             </div>
 
-            {/* Step 1 — Connect X */}
-            <StepShell index={1} total={3} title="Connect Your X Account" subtitle="Identity" done={c1} locked={false}>
+            {/* Card 1 — Connect X */}
+            <Card done={c1}>
+              <CardHeader n="01" title="Connect Your X Account" done={c1} />
               {!c1 ? (
                 <>
-                  <p style={{ margin: "0 0 10px", fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
+                  <p style={{ margin: "0 0 10px", fontFamily: body, fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
                     Sign in with X to verify it's really you. This opens X's own login screen.
                   </p>
                   <button
@@ -416,12 +394,10 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
                       cursor: connecting ? "wait" : "pointer",
                     }}
                   >
-                    <StepIcon kind="connect" />
+                    <ConnectIcon />
                     {connecting ? "Opening X..." : "Connect X Account"}
                   </button>
-                  {authError && (
-                    <p style={{ fontFamily: body, fontSize: "0.6rem", color: "#d96b5a", margin: "6px 0 0" }}>{authError}</p>
-                  )}
+                  {authError && <p style={{ fontFamily: body, fontSize: "0.6rem", color: "#d96b5a", margin: "6px 0 0" }}>{authError}</p>}
                 </>
               ) : (
                 <>
@@ -444,13 +420,14 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
                   </button>
                 </>
               )}
-            </StepShell>
+            </Card>
 
-            {/* Step 2 — Post a bullish tweet */}
-            <StepShell index={2} total={3} title="Post A Bullish Tweet" subtitle="Verification" done={c2} locked={!c1}>
+            {/* Card 2 — Post a bullish tweet */}
+            <Card done={c2} locked={!c1}>
+              <CardHeader n="02" title="Post A Bullish Tweet" done={c2} />
               {!c2 ? (
                 <>
-                  <p style={{ margin: "0 0 8px", fontFamily: display, fontStyle: "italic", fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
+                  <p style={{ margin: "0 0 8px", fontFamily: body, fontSize: "0.82rem", color: muted, lineHeight: 1.5 }}>
                     Post something bullish about Folks on X, then paste the link below.
                   </p>
                   <a
@@ -477,7 +454,6 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
                       marginBottom: "8px",
                     }}
                   >
-                    <StepIcon kind="post" />
                     {composeOpened ? "Reopen Composer" : "Compose Tweet"}
                   </a>
                   <p style={{ ...microLabel, margin: "0 0 6px" }}>Link to your post</p>
@@ -507,10 +483,11 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
               ) : (
                 <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Post confirmed</p>
               )}
-            </StepShell>
+            </Card>
 
-            {/* Step 3 — Wallet */}
-            <StepShell index={3} total={3} title="Register Your Wallet" subtitle="Early Role" done={c3} locked={!c2}>
+            {/* Card 3 — Wallet */}
+            <Card done={c3} locked={!c2}>
+              <CardHeader n="03" title="Register Your Wallet" done={c3} />
               {!c3 ? (
                 <>
                   <p style={{ ...microLabel, margin: "0 0 6px" }}>EVM address</p>
@@ -541,7 +518,7 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
               ) : (
                 <p style={{ fontFamily: mono, fontSize: "0.66rem", color: gold, margin: 0 }}>Wallet registered</p>
               )}
-            </StepShell>
+            </Card>
 
             {err && <p style={{ fontFamily: body, fontSize: "0.78rem", color: "#d96b5a", margin: "4px 0 10px", fontWeight: 500 }}>{err}</p>}
 
@@ -615,7 +592,7 @@ function StatusView({
         {eyebrow}
       </p>
       <h2 style={{ fontFamily: display, fontSize: "1.5rem", fontWeight: 650, color: "#fff", margin: "0 0 10px" }}>{title}</h2>
-      <p style={{ fontFamily: display, fontStyle: "italic", fontSize: "0.9rem", color: muted, margin: 0, lineHeight: 1.6, maxWidth: "320px", marginLeft: "auto", marginRight: "auto" }}>
+      <p style={{ fontFamily: body, fontSize: "0.9rem", color: muted, margin: 0, lineHeight: 1.6, maxWidth: "320px", marginLeft: "auto", marginRight: "auto" }}>
         {body}
       </p>
       <button
@@ -640,4 +617,3 @@ function StatusView({
     </div>
   );
 }
-.
