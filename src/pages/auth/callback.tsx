@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { extractXHandle } from "@/hooks/useAuth";
+import { extractXHandle, peekPostAuthAction } from "@/hooks/useAuth";
 import { display, gold, ink, mono, muted } from "@/lib/theme";
 import { FolksSeal } from "@/components/shared";
 
@@ -44,7 +44,7 @@ export default function AuthCallback() {
         console.error("Profile upsert failed:", upsertError.message);
       }
 
-      navigate("/");
+      navigate(peekPostAuthAction() === "whitelist" ? "/whitelist" : "/");
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
