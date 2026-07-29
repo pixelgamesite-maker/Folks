@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { body, display, faint, gold, goldLight, ink, line, mono, muted } from "../lib/theme";
 import { supabase } from "../lib/supabase";
-import { useAuth, extractXHandle, setReopenFlag } from "../hooks/useAuth";
+import { useAuth, extractXHandle, setPostAuthAction } from "../hooks/useAuth";
 import {
   blurInp,
   FolksSeal,
@@ -136,7 +136,7 @@ export default function EarlyRoleModal({ open, onClose }: { open: boolean; onClo
   async function connectX() {
     setAuthError("");
     setConnecting(true);
-    setReopenFlag();
+    setPostAuthAction("early_role");
     const error = await auth.signInWithX();
     if (error) {
       setConnecting(false);
@@ -640,3 +640,4 @@ function StatusView({
     </div>
   );
 }
+.
