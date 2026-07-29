@@ -50,25 +50,35 @@ export function extractXHandle(user: User | null | undefined): string {
 }
 
 /**
- * Small handoff so the page that triggered sign-in can reopen whatever UI
- * (e.g. the Folkslist modal) the person was in once /auth/callback sends
- * them back to "/". Call `setReopenFlag()` right before `signInWithX()`,
- * and `consumeReopenFlag()` once on mount wherever they land.
+ * Small handoff so /auth/callback knows where to send someone once X signs
+ * them back in — Early Role reopens the modal on "/", Whitelist goes to the
+ * dedicated "/whitelist" page. Call `setPostAuthAction(...)` right before
+ * `signInWithX()`, `peekPostAuthAction()` to read it without clearing it
+ * (used by callback.tsx to pick a route), and `consumePostAuthAction()` to
+ * read-and-clear it (used by whichever page actually needs to react to it).
  */
-const REOPEN_FLAG = "folks_reopen_modal";
+export type PostAuthAction = "early_role" | "whitelist";
+const POST_AUTH_ACTION_KEY = "folks_post_auth_action";
 
-export function setReopenFlag() {
+export function setPostAuthAction(action: PostAuthAction) {
   try {
-    localStorage.setItem(REOPEN_FLAG, "1");
+    localStorage.setItem(POST_AUTH_ACTION_KEY, action);
   } catch {}
 }
 
-export function consumeReopenFlag(): boolean {
+export function peekPostAuthAction(): PostAuthAction | null {
   try {
-    if (localStorage.getItem(REOPEN_FLAG) === "1") {
-      localStorage.removeItem(REOPEN_FLAG);
-      return true;
-    }
+    const v = localStorage.getItem(POST_AUTH_ACTION_KEY);
+    return v === "early_role" || v === "whitelist" ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function consumePostAuthAction(): PostAuthAction | null {
+  const v = peekPostAuthAction();
+  try {
+    localStorage.removeItem(POST_AUTH_ACTION_KEY);
   } catch {}
-  return false;
+  return v;
 }
