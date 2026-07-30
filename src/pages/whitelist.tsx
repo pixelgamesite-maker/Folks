@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "wouter";
 import { body, display, goldDeep, ink, mono, muted, violet, violetLight, violetLine } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction, setReferralCode } from "../hooks/useAuth";
@@ -265,7 +266,7 @@ function BullishPostRow({ done, onComplete, last }: { done: boolean; onComplete:
         <div>
           <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>Make a bullish post about Folks</p>
           <p style={{ margin: "2px 0 0", fontFamily: body, fontSize: "0.68rem", color: "rgba(245,247,245,0.4)", lineHeight: 1.4, maxWidth: "220px" }}>
-            Write it your own way — just mention @{X_HANDLE}.
+            Write a post about Folks and mention @{X_HANDLE}.
           </p>
           <p style={{ margin: "4px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+100 pts</p>
         </div>
@@ -522,10 +523,10 @@ export default function WhitelistPage() {
         }}
       >
         <div style={{ maxWidth: "440px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
             <FolksSeal size={26} />
             <span style={{ fontFamily: display, fontSize: "0.94rem", fontWeight: 700, color: "#fff", letterSpacing: "0.01em" }}>FOLKS</span>
-          </div>
+          </Link>
 
           <div ref={menuRef} style={{ position: "relative" }}>
             <button onClick={() => setMenuOpen((o) => !o)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 0 }}>
@@ -664,7 +665,7 @@ export default function WhitelistPage() {
       <div style={inner}>
         <p style={{ fontFamily: display, fontSize: "1.05rem", fontWeight: 700, color: "#fff", margin: "0 0 6px" }}>Earn Your Spot</p>
         <p style={{ fontFamily: body, fontSize: "0.82rem", color: muted, margin: "0 0 24px", lineHeight: 1.55 }}>
-          Complete the tasks below to earn points toward the Whitelist. One-time tasks only need doing once — the tasks below those refresh regularly, so check back often.
+          Earn points by completing tasks. Daily tasks refresh every 24 hours.
         </p>
 
         {/* One-time tasks */}
