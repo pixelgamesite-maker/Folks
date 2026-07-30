@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { body, display, ink, mono, muted, violet, violetLight, violetLine } from "../lib/theme";
+import { body, display, goldDeep, ink, mono, muted, violet, violetLight, violetLine } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction, setReferralCode } from "../hooks/useAuth";
 import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
@@ -11,8 +11,10 @@ const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
 const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
 const RETWEET_URL = `https://twitter.com/intent/retweet?tweet_id=${PINNED_TWEET_ID}`;
-const BULLISH_INTENT_TEXT = "Feeling bullish on @thefolkseth_.";
-const BULLISH_COMPOSE_URL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(BULLISH_INTENT_TEXT)}`;
+/** Deliberately no pre-filled text — X flags accounts whose followers all
+ * post identical wording as bot-like. People write their own post; the
+ * only requirement is that it mentions Folks. */
+const BULLISH_COMPOSE_URL = "https://twitter.com/intent/tweet";
 
 const COUNTDOWN_SECS = 60;
 const pageBg = "#15131c";
@@ -107,7 +109,23 @@ function RowAction({
 }) {
   if (phase === "done") {
     return (
-      <span style={{ fontFamily: mono, fontSize: "0.62rem", fontWeight: 700, color: violet, textTransform: "uppercase" }}>Done</span>
+      <span
+        style={{
+          display: "inline-block",
+          padding: "7px 14px",
+          borderRadius: "6px",
+          background: goldDeep,
+          color: "#fff",
+          fontFamily: mono,
+          fontSize: "0.62rem",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          cursor: "not-allowed",
+        }}
+      >
+        Completed
+      </span>
     );
   }
   if (phase === "counting") {
@@ -246,10 +264,29 @@ function BullishPostRow({ done, onComplete, last }: { done: boolean; onComplete:
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: expanded && !done ? "10px" : 0 }}>
         <div>
           <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>Make a bullish post about Folks</p>
-          <p style={{ margin: "2px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+100 pts</p>
+          <p style={{ margin: "2px 0 0", fontFamily: body, fontSize: "0.68rem", color: "rgba(245,247,245,0.4)", lineHeight: 1.4, maxWidth: "220px" }}>
+            Write it your own way — just mention @{X_HANDLE}.
+          </p>
+          <p style={{ margin: "4px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+100 pts</p>
         </div>
         {done ? (
-          <span style={{ fontFamily: mono, fontSize: "0.62rem", fontWeight: 700, color: violet, textTransform: "uppercase" }}>Done</span>
+          <span
+            style={{
+              display: "inline-block",
+              padding: "7px 14px",
+              borderRadius: "6px",
+              background: goldDeep,
+              color: "#fff",
+              fontFamily: mono,
+              fontSize: "0.62rem",
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              cursor: "not-allowed",
+            }}
+          >
+            Completed
+          </span>
         ) : (
           !expanded && (
             <button
@@ -382,8 +419,16 @@ export default function WhitelistPage() {
 
   async function completeTask(taskId: string) {
     if (!auth.user || done[taskId]) return;
+    const { error } = await supabase.from("folks_task_completions").insert({ task_id: taskId });
+    if (error && error.code !== "23505") {
+      // 23505 = already recorded (e.g. a duplicate click) — treat as done.
+      // Anything else means it genuinely didn't save; don't mark it done
+      // locally, or the UI would show "complete" for something the
+      // database never actually has, exactly the bug this replaces.
+      console.error("completeTask failed:", error.message);
+      return;
+    }
     setDone((prev) => ({ ...prev, [taskId]: true }));
-    await supabase.from("folks_task_completions").insert({ task_id: taskId });
     refreshPoints();
   }
 
@@ -617,6 +662,11 @@ export default function WhitelistPage() {
       </div>
 
       <div style={inner}>
+        <p style={{ fontFamily: display, fontSize: "1.05rem", fontWeight: 700, color: "#fff", margin: "0 0 6px" }}>Earn Your Spot</p>
+        <p style={{ fontFamily: body, fontSize: "0.82rem", color: muted, margin: "0 0 24px", lineHeight: 1.55 }}>
+          Complete the tasks below to earn points toward the Whitelist. One-time tasks only need doing once — the tasks below those refresh regularly, so check back often.
+        </p>
+
         {/* One-time tasks */}
         <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>One-Time Tasks</p>
         <ListContainer>
