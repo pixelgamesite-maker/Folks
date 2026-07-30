@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { body, display, ink, mono, muted, violet, violetLight, violetLine } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction } from "../hooks/useAuth";
-import { isValidEvm, isValidUrl } from "../components/shared";
+import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
 const X_HANDLE = "thefolkseth_";
 /** Placeholder — client will drop the real pinned post ID/URL in later. */
@@ -167,6 +167,8 @@ export default function WhitelistPage() {
   const [liked, setLiked] = useState(false);
   const [retweeted, setRetweeted] = useState(false);
   const [commentUrl, setCommentUrl] = useState("");
+  const [verifyingComment, setVerifyingComment] = useState(false);
+  const [commentError, setCommentError] = useState("");
   const [wallet, setWallet] = useState("");
   const [walletConfirmed, setWalletConfirmed] = useState(false);
 
@@ -246,6 +248,20 @@ export default function WhitelistPage() {
     refreshPoints();
   }
 
+  async function verifyComment() {
+    setCommentError("");
+    setVerifyingComment(true);
+    const { data, error } = await supabase.functions.invoke("verify-post", {
+      body: { url: commentUrl, mode: "reply", replyToTweetId: PINNED_TWEET_ID },
+    });
+    setVerifyingComment(false);
+    if (error || !data?.verified) {
+      setCommentError(data?.reason || "Couldn't verify that reply. Try again.");
+      return;
+    }
+    completeTask("comment");
+  }
+
   async function connectX() {
     setConnecting(true);
     setPostAuthAction("whitelist");
@@ -291,8 +307,8 @@ export default function WhitelistPage() {
     setAlreadySubmitted(true);
   }
 
-  const wrap: React.CSSProperties = { minHeight: "100vh", background: pageBg, color: "#fff", fontFamily: body, padding: "36px 20px 60px" };
-  const inner: React.CSSProperties = { maxWidth: "440px", margin: "0 auto" };
+  const wrap: React.CSSProperties = { minHeight: "100vh", background: pageBg, color: "#fff", fontFamily: body };
+  const inner: React.CSSProperties = { maxWidth: "440px", margin: "0 auto", padding: "24px 20px 60px" };
 
   /* ── Not signed in ── */
   if (!auth.user) {
@@ -363,110 +379,118 @@ export default function WhitelistPage() {
   /* ── Main page ── */
   return (
     <div style={wrap}>
-      <div style={inner}>
-        {/* Inline profile menu */}
-        <div ref={menuRef} style={{ position: "relative", marginBottom: "22px" }}>
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              background: cardBg,
-              border: `1px solid ${cardBorder}`,
-              borderRadius: "14px",
-              padding: "10px 14px",
-              cursor: "pointer",
-            }}
-          >
-            <Avatar url={avatarUrl} initial={handle ? handle[0].toUpperCase() : "F"} size={38} />
-            <div style={{ flex: 1, textAlign: "left" }}>
-              <p style={{ margin: 0, fontFamily: display, fontSize: "0.86rem", fontWeight: 600, color: "#fff" }}>@{handle}</p>
-              <p style={{ margin: 0, ...microLabel }}>Whitelist Applicant</p>
-            </div>
-            <span style={{ fontFamily: mono, fontSize: "0.78rem", fontWeight: 700, color: violet }}>{(points ?? 0).toLocaleString()} pts</span>
-          </button>
+      {/* Header — brand mark left, profile avatar right, matching a real app header. Full-bleed and sticky, independent of the content column's max-width. */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          padding: "14px 20px",
+          background: "rgba(21,19,28,0.9)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderBottom: `1px solid ${cardBorder}`,
+        }}
+      >
+        <div style={{ maxWidth: "440px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <FolksSeal size={26} />
+            <span style={{ fontFamily: display, fontSize: "0.94rem", fontWeight: 700, color: "#fff", letterSpacing: "0.01em" }}>FOLKS</span>
+          </div>
 
-          {menuOpen && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                right: 0,
-                background: "#1c1926",
-                border: `1px solid ${cardBorder}`,
-                borderRadius: "10px",
-                overflow: "hidden",
-                zIndex: 10,
-                minWidth: "160px",
-              }}
-            >
-              <button
-                onClick={() => auth.signOut()}
+          <div ref={menuRef} style={{ position: "relative" }}>
+            <button onClick={() => setMenuOpen((o) => !o)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", lineHeight: 0 }}>
+              <Avatar url={avatarUrl} initial={handle ? handle[0].toUpperCase() : "F"} size={34} />
+            </button>
+
+            {menuOpen && (
+              <div
                 style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 14px",
-                  background: "none",
-                  border: "none",
-                  color: "rgba(245,247,245,0.7)",
-                  fontFamily: body,
-                  fontSize: "0.76rem",
-                  cursor: "pointer",
+                  position: "absolute",
+                  top: "calc(100% + 10px)",
+                  right: 0,
+                  width: "260px",
+                  background: "#1c1926",
+                  border: `1px solid ${cardBorder}`,
+                  borderRadius: "14px",
+                  overflow: "hidden",
+                  zIndex: 30,
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
                 }}
               >
-                Disconnect
-              </button>
-            </div>
-          )}
-        </div>
+                <div style={{ padding: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                    <Avatar url={avatarUrl} initial={handle ? handle[0].toUpperCase() : "F"} size={34} />
+                    <p style={{ margin: 0, fontFamily: display, fontSize: "0.88rem", fontWeight: 600, color: "#fff" }}>@{handle}</p>
+                  </div>
 
-        {/* Points + referral */}
-        <Panel style={{ marginBottom: "22px" }}>
-          <p style={{ ...microLabel, margin: "0 0 4px", textAlign: "center" }}>Points Balance</p>
-          <p style={{ fontFamily: display, fontSize: "2.4rem", fontWeight: 700, color: violet, margin: "0 0 18px", textAlign: "center" }}>
-            {(points ?? 0).toLocaleString()}
-          </p>
-          <div style={{ height: "1px", background: cardBorder, margin: "0 0 16px" }} />
-          <p style={{ ...microLabel, margin: "0 0 8px" }}>Your Referral Link</p>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <div
-              style={{
-                flex: 1,
-                background: "rgba(0,0,0,0.25)",
-                borderRadius: "8px",
-                padding: "10px 12px",
-                fontFamily: mono,
-                fontSize: "0.72rem",
-                color: "#fff",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {referralLink || "generating..."}
-            </div>
-            <button
-              onClick={copyReferralLink}
-              disabled={!referralLink}
-              style={{
-                background: violet,
-                color: ink,
-                border: "none",
-                borderRadius: "8px",
-                padding: "0 16px",
-                fontFamily: mono,
-                fontSize: "0.68rem",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              {copied ? "Copied" : "Copy"}
-            </button>
+                  <p style={{ ...microLabel, margin: "0 0 2px" }}>Points Balance</p>
+                  <p style={{ fontFamily: display, fontSize: "1.9rem", fontWeight: 700, color: violet, margin: "0 0 14px" }}>
+                    {(points ?? 0).toLocaleString()}
+                  </p>
+
+                  <p style={{ ...microLabel, margin: "0 0 6px" }}>Your Referral Link</p>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <div
+                      style={{
+                        flex: 1,
+                        background: "rgba(0,0,0,0.3)",
+                        borderRadius: "7px",
+                        padding: "8px 10px",
+                        fontFamily: mono,
+                        fontSize: "0.66rem",
+                        color: "#fff",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {referralLink || "generating..."}
+                    </div>
+                    <button
+                      onClick={copyReferralLink}
+                      disabled={!referralLink}
+                      style={{
+                        background: violet,
+                        color: ink,
+                        border: "none",
+                        borderRadius: "7px",
+                        padding: "0 12px",
+                        fontFamily: mono,
+                        fontSize: "0.62rem",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => auth.signOut()}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "12px 16px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "none",
+                    borderTop: `1px solid ${cardBorder}`,
+                    color: "rgba(245,247,245,0.65)",
+                    fontFamily: body,
+                    fontSize: "0.76rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  Disconnect
+                </button>
+              </div>
+            )}
           </div>
-        </Panel>
+        </div>
+      </div>
 
+      <div style={inner}>
         {/* Follow — standalone, one-time */}
         <div style={{ marginBottom: "22px" }}>
           <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>Step One</p>
@@ -579,10 +603,11 @@ export default function WhitelistPage() {
                     <input placeholder="https://x.com/you/status/..." value={commentUrl} disabled={!!done.comment} onChange={(e) => setCommentUrl(e.target.value)} style={inputStyle} />
                     {commentUrl && !isValidUrl(commentUrl) && <p style={{ fontSize: "0.66rem", color: "#d96b5a", margin: "6px 0 0" }}>Needs a valid https:// link.</p>}
                     {isValidUrl(commentUrl) && !done.comment && (
-                      <button onClick={() => completeTask("comment")} style={confirmBtn}>
-                        Confirm Link
+                      <button onClick={verifyComment} disabled={verifyingComment} style={{ ...confirmBtn, cursor: verifyingComment ? "wait" : "pointer" }}>
+                        {verifyingComment ? "Verifying..." : "Confirm Link"}
                       </button>
                     )}
+                    {commentError && <p style={{ fontSize: "0.66rem", color: "#d96b5a", margin: "6px 0 0" }}>{commentError}</p>}
                     {done.comment && <p style={{ fontSize: "0.66rem", color: violet, margin: "8px 0 0" }}>Confirmed.</p>}
                   </>
                 )}
