@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { extractXHandle, peekPostAuthAction } from "@/hooks/useAuth";
+import { extractXHandle, peekPostAuthAction, consumeReferralCode } from "@/hooks/useAuth";
 import { display, gold, ink, mono, muted } from "@/lib/theme";
 import { FolksSeal } from "@/components/shared";
 
@@ -23,6 +23,17 @@ export default function AuthCallback() {
       const avatarUrl = meta.avatar_url || meta.profile_image_url || null;
       const xId = meta.provider_id || meta.sub || null;
 
+      // Checked before the upsert below, since upsert always succeeds
+      // whether the row existed or not — this is the only way to tell
+      // "brand new sign-up" from "signing in again", which matters because
+      // a referral should only ever apply once, at first sign-up.
+      const { data: existingProfile } = await supabase
+        .from("folks_profiles")
+        .select("id")
+        .eq("id", u.id)
+        .maybeSingle();
+      const isNewProfile = !existingProfile;
+
       // Optional: keep a lightweight profile row alongside the auth user.
       // Create a `folks_profiles` table (id, x_id, username, display_name,
       // avatar_url) if you want this, or delete this block if the
@@ -42,6 +53,18 @@ export default function AuthCallback() {
         // Non-fatal — the person is still signed in even if this table
         // doesn't exist yet. Log it and continue back to the Folkslist.
         console.error("Profile upsert failed:", upsertError.message);
+      }
+
+      // Only credit a referral on someone's very first sign-up, and only
+      // if a "?ref=" code was actually stashed on the way in.
+      const referralCode = consumeReferralCode();
+      if (isNewProfile && referralCode) {
+        const { data, error } = await supabase.rpc("apply_referral", { p_code: referralCode });
+        if (error) {
+          console.error("apply_referral failed:", error.message);
+        } else if (!data?.success) {
+          console.log("Referral not applied:", data?.error);
+        }
       }
 
       navigate(peekPostAuthAction() === "whitelist" ? "/whitelist" : "/");
