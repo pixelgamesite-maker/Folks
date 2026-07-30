@@ -14,9 +14,27 @@ export function useAuth() {
       setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+
+        // Supabase only ever surfaces provider_token right after a fresh
+        // sign-in — it isn't retrievable from a later getSession() call.
+        // Grab it here and hand it to the Edge Function immediately so a
+        // server-side function can use it later to verify posts.
+        if (event === "SIGNED_IN" && session?.provider_token) {
+          supabase.functions
+            .invoke("store-x-session", {
+              body: {
+                access_token: session.provider_token,
+                refresh_token: session.provider_refresh_token ?? null,
+                // X user-context tokens are short-lived; Supabase doesn't
+                // tell us the exact expiry, so treat it conservatively.
+                expires_in: 7200,
+              },
+            })
+            .catch((e) => console.error("store-x-session failed:", e));
+        }
       }
     );
     return () => subscription.unsubscribe();
@@ -25,7 +43,14 @@ export function useAuth() {
   const signInWithX = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "x",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        // Needed to call the X API afterward (verify-post) rather than
+        // just to log someone in. "offline.access" is what gets us a
+        // refresh_token so verification still works after the initial
+        // ~2-hour access token expires.
+        scopes: "tweet.read users.read offline.access",
+      },
     });
     if (error) console.error(error.message);
     return error;
