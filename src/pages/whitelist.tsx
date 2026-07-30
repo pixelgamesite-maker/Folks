@@ -80,22 +80,29 @@ function Avatar({ url, initial, size = 40 }: { url?: string | null; initial: str
   );
 }
 
-/** Click → opens the link → counts down → auto-completes. No link-paste, no
- * manual "confirm" — matches the low-friction pattern for daily-rotating
- * tasks (open, do the thing, come back, done). */
+/** Click → opens the link → counts down → then (if a verify mode is given)
+ * actually checks with X before marking done. Falls back to the old
+ * simple auto-complete if no verifyMode is passed (used for Follow, where
+ * checking "did they follow" reliably via the API is murkier and the
+ * task is low-stakes enough not to bother). */
 function CountdownTask({
   actionLabel,
   actionHref,
   done,
   onComplete,
+  verifyMode,
+  targetTweetId,
 }: {
   actionLabel: string;
   actionHref: string;
   done: boolean;
   onComplete: () => void;
+  verifyMode?: "like" | "retweet" | "reply";
+  targetTweetId?: string;
 }) {
-  const [counting, setCounting] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "counting" | "checking" | "failed">("idle");
   const [secs, setSecs] = useState(COUNTDOWN_SECS);
+  const [failReason, setFailReason] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -104,17 +111,34 @@ function CountdownTask({
     };
   }, []);
 
+  async function finish() {
+    if (!verifyMode) {
+      onComplete();
+      return;
+    }
+    setPhase("checking");
+    const { data, error } = await supabase.functions.invoke("verify-post", {
+      body: { mode: verifyMode, targetTweetId },
+    });
+    if (error || !data?.verified) {
+      setFailReason(data?.reason || "Couldn't verify that yet. Try again.");
+      setPhase("failed");
+      return;
+    }
+    onComplete();
+  }
+
   function start() {
-    if (done || counting) return;
+    if (done || phase === "counting" || phase === "checking") return;
     window.open(actionHref, "_blank");
-    setCounting(true);
+    setPhase("counting");
     setSecs(COUNTDOWN_SECS);
     timerRef.current = setInterval(() => {
       setSecs((s) => {
         if (s <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
           timerRef.current = null;
-          onComplete();
+          finish();
           return 0;
         }
         return s - 1;
@@ -142,7 +166,7 @@ function CountdownTask({
       </div>
     );
   }
-  if (counting) {
+  if (phase === "counting") {
     return (
       <div
         style={{
@@ -156,30 +180,51 @@ function CountdownTask({
           fontWeight: 700,
         }}
       >
-        Verifying... {secs}s
+        Waiting... {secs}s
+      </div>
+    );
+  }
+  if (phase === "checking") {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          padding: "9px",
+          borderRadius: "7px",
+          border: `1px solid ${cardBorder}`,
+          color: violet,
+          fontFamily: mono,
+          fontSize: "0.68rem",
+          fontWeight: 700,
+        }}
+      >
+        Checking with X...
       </div>
     );
   }
   return (
-    <button
-      onClick={start}
-      style={{
-        width: "100%",
-        textAlign: "center",
-        fontFamily: mono,
-        fontSize: "0.64rem",
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        color: ink,
-        background: violet,
-        border: "none",
-        borderRadius: "7px",
-        padding: "9px",
-        cursor: "pointer",
-      }}
-    >
-      {actionLabel}
-    </button>
+    <>
+      <button
+        onClick={start}
+        style={{
+          width: "100%",
+          textAlign: "center",
+          fontFamily: mono,
+          fontSize: "0.64rem",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: ink,
+          background: violet,
+          border: "none",
+          borderRadius: "7px",
+          padding: "9px",
+          cursor: "pointer",
+        }}
+      >
+        {phase === "failed" ? "Try Again" : actionLabel}
+      </button>
+      {phase === "failed" && <p style={{ fontSize: "0.62rem", color: "#d96b5a", margin: "6px 0 0", textAlign: "center" }}>{failReason}</p>}
+    </>
   );
 }
 
@@ -470,9 +515,9 @@ export default function WhitelistPage() {
           <div style={{ position: "absolute", left: "13px", top: "14px", bottom: "14px", width: "1px", background: cardBorder }} />
 
           {[
-            { n: "like", label: "Like the pinned post", pts: 25, actionLabel: "Like", href: LIKE_URL },
-            { n: "retweet", label: "Retweet the pinned post", pts: 25, actionLabel: "Retweet", href: RETWEET_URL },
-            { n: "comment", label: "Comment and tag 2 frens", pts: 50, actionLabel: "Comment", href: PINNED_TWEET_URL },
+            { n: "like", label: "Like the pinned post", pts: 25, actionLabel: "Like", href: LIKE_URL, mode: "like" as const },
+            { n: "retweet", label: "Retweet the pinned post", pts: 25, actionLabel: "Retweet", href: RETWEET_URL, mode: "retweet" as const },
+            { n: "comment", label: "Comment and tag 2 frens", pts: 50, actionLabel: "Comment", href: PINNED_TWEET_URL, mode: "reply" as const },
           ].map((task, i) => (
             <div key={task.n} style={{ display: "flex", gap: "14px", marginBottom: i < 2 ? "14px" : 0 }}>
               <div
@@ -504,7 +549,14 @@ export default function WhitelistPage() {
                     +{task.pts} pts
                   </span>
                 </div>
-                <CountdownTask actionLabel={task.actionLabel} actionHref={task.href} done={!!done[task.n]} onComplete={() => completeTask(task.n)} />
+                <CountdownTask
+                  actionLabel={task.actionLabel}
+                  actionHref={task.href}
+                  done={!!done[task.n]}
+                  onComplete={() => completeTask(task.n)}
+                  verifyMode={task.mode}
+                  targetTweetId={PINNED_TWEET_ID}
+                />
               </Panel>
             </div>
           ))}
