@@ -31,10 +31,14 @@ export const goldDeep  = "#245C38";
 // Secondary accent — reserved for the Whitelist flow (uncapped, unhurried)
 // so it reads as a genuinely different path from Early Role (green, scarce),
 // and so the page isn't monochrome green top to bottom.
-export const violet      = "#8B6BF0";
-export const violetLight = "#AC94F5";
-export const violetDeep  = "#5A3FC0";
-export const violetLine  = "rgba(139,107,240,0.22)";
+// "violet" is the legacy name — value is now a bright lime-green (the
+// Whitelist flow's accent), not purple. Kept the name so Hero.tsx,
+// WhitelistModal.tsx, and whitelist.tsx all pick up the new color without
+// each needing to be touched individually.
+export const violet      = "#D4F95C";
+export const violetLight = "#E4FF8C";
+export const violetDeep  = "#9FCC2E";
+export const violetLine  = "rgba(212,249,92,0.22)";
 
 export const white = "#f5f7f5";
 export const muted = "rgba(245,247,245,0.55)";
