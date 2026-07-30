@@ -7,9 +7,11 @@ import { Divider } from "../components/shared";
 import About from "../components/About";
 import FAQ from "../components/FAQ";
 import Footer from "../components/Footer";
+import GetWhitelistedModal from "../components/GetWhitelistedModal";
 import WhitelistModal from "../components/WhitelistModal";
 
 export default function Home() {
+  const [choiceOpen, setChoiceOpen] = useState(false);
   const [whitelistOpen, setWhitelistOpen] = useState(false);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function Home() {
       `}</style>
 
       <Header />
-      <Hero onOpenWhitelist={() => setWhitelistOpen(true)} />
+      <Hero onOpenWhitelist={() => setChoiceOpen(true)} />
 
       <Divider />
       <About />
@@ -46,6 +48,17 @@ export default function Home() {
 
       <Footer />
 
+      {/* Get Whitelisted → choose Earn Points or Marketplace */}
+      <GetWhitelistedModal
+        open={choiceOpen}
+        onClose={() => setChoiceOpen(false)}
+        onEarnPoints={() => {
+          setChoiceOpen(false);
+          setWhitelistOpen(true);
+        }}
+      />
+
+      {/* Earn Points → Connect X gate → /whitelist */}
       <WhitelistModal open={whitelistOpen} onClose={() => setWhitelistOpen(false)} />
     </div>
   );
