@@ -107,3 +107,27 @@ export function consumePostAuthAction(): PostAuthAction | null {
   } catch {}
   return v;
 }
+
+/**
+ * Referral code from a "?ref=CODE" link, stashed the moment someone lands
+ * on a page carrying one — has to survive the OAuth redirect round trip
+ * the same way the post-auth action does, since the code sits in the URL
+ * before they connect and needs to still be around after.
+ */
+const REFERRAL_CODE_KEY = "folks_referral_code";
+
+export function setReferralCode(code: string) {
+  try {
+    localStorage.setItem(REFERRAL_CODE_KEY, code);
+  } catch {}
+}
+
+export function consumeReferralCode(): string | null {
+  try {
+    const v = localStorage.getItem(REFERRAL_CODE_KEY);
+    localStorage.removeItem(REFERRAL_CODE_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+}
