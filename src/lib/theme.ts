@@ -17,24 +17,24 @@ export const body = "'Inter', 'Segoe UI', Arial, sans-serif";
 export const mono = "'JetBrains Mono', 'Courier New', monospace";
 
 export const ink        = "#08090a";   // page background — near-black, slightly cooler
-export const panel      = "#0b0f0c";   // card / panel background, faint green cast
-export const panelRaise = "#10140f";
-export const line        = "rgba(46,125,74,0.22)";   // muted green hairline
-export const lineStrong  = "rgba(46,125,74,0.4)";
+export const panel      = "#0a0c10";   // card / panel background, faint blue cast
+export const panelRaise = "#0f131a";
+export const line        = "rgba(46,90,172,0.22)";   // dark-blue hairline
+export const lineStrong  = "rgba(46,90,172,0.4)";
 
-// "gold" is the legacy name — value is now a muted, desaturated green
-// instead of Robinhood's neon brand green. Same idea, much quieter.
-export const gold      = "#3E9B5C";
-export const goldLight = "#5FBE7C";
-export const goldDeep  = "#245C38";
+// "gold" is the legacy name — value is now a dark blue instead of green.
+// Kept white text on top of it rather than the old near-black "ink" text,
+// since dark-blue-on-dark-text isn't readable the way bright-green-on-dark
+// text was.
+export const gold      = "#2E5AAC";
+export const goldLight = "#4F7FD1";
+export const goldDeep  = "#1B3A73";
 
-// Secondary accent — reserved for the Whitelist flow (uncapped, unhurried)
-// so it reads as a genuinely different path from Early Role (green, scarce),
-// and so the page isn't monochrome green top to bottom.
-// "violet" is the legacy name — value is now a bright lime-green (the
-// Whitelist flow's accent), not purple. Kept the name so Hero.tsx,
-// WhitelistModal.tsx, and whitelist.tsx all pick up the new color without
-// each needing to be touched individually.
+// Whitelist accent — bright lime, unrelated to the blue above so buttons/
+// highlights on the tasks page stay clearly legible against dark backgrounds.
+// "violet" is the legacy name — value is a lime-green, not purple. Kept the
+// name so Hero.tsx and whitelist.tsx pick up the color without each needing
+// to be touched individually.
 export const violet      = "#D4F95C";
 export const violetLight = "#E4FF8C";
 export const violetDeep  = "#9FCC2E";
