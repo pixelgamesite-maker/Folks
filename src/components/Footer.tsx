@@ -14,7 +14,7 @@ export default function Footer() {
         FOLKS
       </h3>
       <p style={{ fontFamily: display, fontSize: "0.82rem", color: "rgba(245,247,245,0.32)", margin: "0 0 22px" }}>
-        Three thousand folks. Launching on Ethereum.
+        Built on Ethereum.
       </p>
 
       <div style={{ display: "flex", gap: "14px", justifyContent: "center", marginBottom: "18px" }}>
