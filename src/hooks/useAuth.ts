@@ -82,7 +82,7 @@ export function extractXHandle(user: User | null | undefined): string {
  * (used by callback.tsx to pick a route), and `consumePostAuthAction()` to
  * read-and-clear it (used by whichever page actually needs to react to it).
  */
-export type PostAuthAction = "early_role" | "whitelist";
+export type PostAuthAction = "early_role" | "whitelist" | "marketplace";
 const POST_AUTH_ACTION_KEY = "folks_post_auth_action";
 
 export function setPostAuthAction(action: PostAuthAction) {
@@ -94,7 +94,7 @@ export function setPostAuthAction(action: PostAuthAction) {
 export function peekPostAuthAction(): PostAuthAction | null {
   try {
     const v = localStorage.getItem(POST_AUTH_ACTION_KEY);
-    return v === "early_role" || v === "whitelist" ? v : null;
+    return v === "early_role" || v === "whitelist" || v === "marketplace" ? v : null;
   } catch {
     return null;
   }
