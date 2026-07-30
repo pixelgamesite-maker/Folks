@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { body, display, ink, line, mono, violet, violetLight, violetLine } from "../lib/theme";
+import { body, gold, goldLight, ink, violet, violetLight, violetLine } from "../lib/theme";
 
 export default function GetWhitelistedModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [, navigate] = useLocation();
@@ -40,10 +40,9 @@ export default function GetWhitelistedModal({ open, onClose }: { open: boolean; 
           background: "#0b0a10",
           border: `1px solid ${violetLine}`,
           borderRadius: "14px",
-          padding: "28px 22px 24px",
+          padding: "24px 22px",
           animation: "folksModalIn 0.25s ease both",
           position: "relative",
-          textAlign: "center",
         }}
       >
         <button
@@ -62,52 +61,45 @@ export default function GetWhitelistedModal({ open, onClose }: { open: boolean; 
           ✕
         </button>
 
-        <p style={{ fontFamily: mono, fontSize: "0.58rem", letterSpacing: "0.2em", textTransform: "uppercase", color: violet, margin: "0 0 10px" }}>
-          Get Whitelisted
-        </p>
-        <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.2rem", margin: "0 0 22px", color: "#fff" }}>What are you here for?</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "22px" }}>
+          <button
+            onClick={goEarnPoints}
+            style={{
+              width: "100%",
+              fontFamily: body,
+              fontSize: "0.86rem",
+              fontWeight: 700,
+              color: ink,
+              background: `linear-gradient(180deg,${violetLight},${violet})`,
+              border: "none",
+              borderRadius: "10px",
+              padding: "17px",
+              cursor: "pointer",
+            }}
+          >
+            Earn Points
+          </button>
 
-        <button
-          onClick={goEarnPoints}
-          style={{
-            width: "100%",
-            fontFamily: body,
-            fontSize: "0.8rem",
-            fontWeight: 700,
-            color: ink,
-            background: `linear-gradient(180deg,${violetLight},${violet})`,
-            border: "none",
-            borderRadius: "9px",
-            padding: "15px",
-            cursor: "pointer",
-            marginBottom: "10px",
-          }}
-        >
-          Earn Points
-        </button>
-        <p style={{ fontFamily: mono, fontSize: "0.6rem", color: "rgba(245,247,245,0.35)", margin: "0 0 18px" }}>
-          Complete tasks, climb the Whitelist
-        </p>
-
-        <button
-          onClick={goMarketplace}
-          style={{
-            width: "100%",
-            fontFamily: body,
-            fontSize: "0.8rem",
-            fontWeight: 700,
-            color: "#fff",
-            background: "transparent",
-            border: `1px solid ${line}`,
-            borderRadius: "9px",
-            padding: "15px",
-            cursor: "pointer",
-          }}
-        >
-          Marketplace
-        </button>
-        <p style={{ fontFamily: mono, fontSize: "0.6rem", color: "rgba(245,247,245,0.35)", margin: "8px 0 0" }}>Buy, sell, trade Folks</p>
+          <button
+            onClick={goMarketplace}
+            style={{
+              width: "100%",
+              fontFamily: body,
+              fontSize: "0.86rem",
+              fontWeight: 700,
+              color: "#fff",
+              background: `linear-gradient(180deg,${goldLight},${gold})`,
+              border: "none",
+              borderRadius: "10px",
+              padding: "17px",
+              cursor: "pointer",
+            }}
+          >
+            Marketplace
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
