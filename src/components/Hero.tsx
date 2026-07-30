@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { body, display, faint, gold, ink, line, mono, muted, violet, violetLight } from "../lib/theme";
 import { Guilloche } from "./shared";
 
-const TICKER_ITEMS = ["OPENSEA", "SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ETHEREUM"];
+const TICKER_ITEMS = ["ETHEREUM", "OPENSEA", "SUPPLY — TBA", "PRICE — TBA", "WHITELIST OPEN"];
 
 const MINT_STATS: [string, string][] = [
   ["TBA", "Supply"],
@@ -152,7 +152,7 @@ export default function Hero({ onOpenWhitelist }: { onOpenWhitelist: () => void 
               Get Whitelisted
             </button>
             <p style={{ margin: "8px 0 0", fontFamily: mono, fontSize: "0.6rem", color: faint }}>
-              You're early &middot; connect X &middot; earn points
+              Connect X &middot; earn points
             </p>
           </div>
 
