@@ -127,7 +127,14 @@ Deno.serve(async (req) => {
 });
 
 async function apiError(res: Response) {
-  console.error("X API error:", res.status, await res.text());
+  const body = await res.text();
+  console.error("X API error:", res.status, body);
+  if (res.status === 401 || res.status === 403) {
+    return json({
+      verified: false,
+      reason: "X account needs to reconnect — disconnect and connect X again to grant the latest permissions.",
+    });
+  }
   return json({ verified: false, reason: "Couldn't reach X right now. Try again shortly." });
 }
 
