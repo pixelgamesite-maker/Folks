@@ -1,19 +1,15 @@
 import { useLocation } from "wouter";
 import { body, display, ink, line, mono, violet, violetLight, violetLine } from "../lib/theme";
 
-export default function GetWhitelistedModal({
-  open,
-  onClose,
-  onEarnPoints,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onEarnPoints: () => void;
-}) {
+export default function GetWhitelistedModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [, navigate] = useLocation();
 
   if (!open) return null;
 
+  function goEarnPoints() {
+    onClose();
+    navigate("/whitelist");
+  }
   function goMarketplace() {
     onClose();
     navigate("/marketplace");
@@ -72,7 +68,7 @@ export default function GetWhitelistedModal({
         <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.2rem", margin: "0 0 22px", color: "#fff" }}>What are you here for?</p>
 
         <button
-          onClick={onEarnPoints}
+          onClick={goEarnPoints}
           style={{
             width: "100%",
             fontFamily: body,
