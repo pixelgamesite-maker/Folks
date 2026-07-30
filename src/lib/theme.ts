@@ -1,9 +1,10 @@
 /**
- * FOLKS — design tokens (Robinhood-launch theme)
+ * FOLKS — design tokens
  *
- * Token *names* are unchanged from the original build (gold, goldLight,
- * goldDeep, line, etc.) so every component that already imports from here
- * keeps working — only the values changed, from gold to Robinhood's green.
+ * Token *names* are historical (gold, goldLight, goldDeep, violet, etc.) and
+ * no longer describe their actual colors — both families are blue now. Kept
+ * the names so every component that already imports from here keeps working
+ * whenever the palette gets adjusted; only the hex values change.
  */
 
 export const FONT_LINK =
@@ -22,10 +23,9 @@ export const panelRaise = "#0f131a";
 export const line        = "rgba(46,90,172,0.22)";   // dark-blue hairline
 export const lineStrong  = "rgba(46,90,172,0.4)";
 
-// "gold" is the legacy name — value is now a dark blue instead of green.
-// Kept white text on top of it rather than the old near-black "ink" text,
-// since dark-blue-on-dark-text isn't readable the way bright-green-on-dark
-// text was.
+// "gold" is the legacy name — value is a dark blue. Kept white text on top
+// of it rather than the old near-black "ink" text, since dark-blue-on-dark
+// text isn't readable the way the original bright accent was.
 export const gold      = "#2E5AAC";
 export const goldLight = "#4F7FD1";
 export const goldDeep  = "#1B3A73";
