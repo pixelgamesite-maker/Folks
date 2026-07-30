@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { body, display, faint, gold, ink, line, mono, muted, violet, violetLight } from "../lib/theme";
 import { Guilloche } from "./shared";
 
-const TICKER_ITEMS = ["ETHEREUM", "OPENSEA", "SUPPLY — TBA", "PRICE — TBA", "LAUNCHING ON ROBINHOOD"];
+const TICKER_ITEMS = ["OPENSEA", "SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ETHEREUM"];
 
 const MINT_STATS: [string, string][] = [
   ["TBA", "Supply"],
