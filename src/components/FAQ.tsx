@@ -3,10 +3,12 @@ import { body, display, gold, line, muted } from "../lib/theme";
 import { Label, RevealSection } from "./shared";
 
 const FAQS = [
-  { q: "What is the Folkslist?", a: "The only way to get whitelisted before mint — connect your X account, complete the tasks, and register your wallet." },
-  { q: "Why does connecting X matter?", a: "It verifies you're a real account, not a duplicate or a bot, before you take a spot on the list." },
-  { q: "What tasks do I need to complete?", a: "Follow the official account, like and retweet the pinned post, then submit your wallet." },
-  { q: "Is there a limit to claim early role?", a: "Yes, 1,000 spots total for early believers" },
+  { q: "What is Folks?", a: "A registry of hand drawn characters, launching on Ethereum." },
+  { q: "What is the Whitelist?", a: "Connect your X account and complete tasks to earn points. Everyone who earns points has a shot at a spot." },
+  { q: "Why does connecting X matter?", a: "It verifies you're a real account, not a duplicate or a bot, before your tasks and points get counted." },
+  { q: "What tasks do I need to complete?", a: "A few one-time tasks (like following and making a bullish post), plus daily tasks that refreshes every 24 hours." },
+  { q: "What is the Marketplace?", a: "Where you'll spend your point balance to secure a Whitelist spot once it opens. It's currently Coming Soon." },
+  { q: "Do I need to connect a wallet?", a: "No, but you can bind your wallet from the profile menu on the Whitelist page so you're ready once spots open." },
 ];
 
 function FaqItem({ q, a }: { q: string; a: string }) {
@@ -18,7 +20,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
         borderRadius: "10px",
         marginBottom: "8px",
         overflow: "hidden",
-        background: "rgba(46,125,74,0.02)",
+        background: "rgba(46,90,172,0.02)",
       }}
     >
       <button
