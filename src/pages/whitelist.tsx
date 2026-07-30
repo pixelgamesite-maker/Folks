@@ -470,7 +470,7 @@ export default function WhitelistPage() {
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "18px" }}>
             <Avatar url={null} initial="F" size={52} />
           </div>
-          <p style={{ ...microLabel, color: violet, margin: "0 0 8px" }}>Whitelist &middot; No Cap</p>
+          <p style={{ ...microLabel, color: violet, margin: "0 0 8px" }}>Whitelist</p>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.3rem", margin: "0 0 10px" }}>Connect X To Continue</p>
           <p style={{ fontFamily: body, fontSize: "0.85rem", color: muted, margin: "0 0 24px", lineHeight: 1.55 }}>
             Sign in with X to see your tasks and start earning points toward the Whitelist.
