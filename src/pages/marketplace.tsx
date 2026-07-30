@@ -75,7 +75,7 @@ export default function MarketplacePage() {
         Coming Soon
       </h1>
       <p style={{ fontFamily: body, fontSize: "0.9rem", color: muted, margin: "0 0 30px", lineHeight: 1.6, maxWidth: "340px" }}>
-        Buying, selling, and trading Folks will live here once the collection is live. Check back after mint.
+        You will be able to buy whitelist spots with yout point balance when marketplace goes live.
       </p>
       <Link
         href="/"
