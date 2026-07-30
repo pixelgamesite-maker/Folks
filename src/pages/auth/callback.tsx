@@ -67,7 +67,8 @@ export default function AuthCallback() {
         }
       }
 
-      navigate(peekPostAuthAction() === "whitelist" ? "/whitelist" : "/");
+      const action = peekPostAuthAction();
+      navigate(action === "whitelist" ? "/whitelist" : action === "marketplace" ? "/marketplace" : "/");
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
