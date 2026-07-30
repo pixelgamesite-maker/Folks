@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { body, display, faint, gold, ink, line, mono, muted, violet, violetLight } from "../lib/theme";
-import { FolksSeal, Guilloche } from "./shared";
+import { Guilloche } from "./shared";
 
 const TICKER_ITEMS = ["ETHEREUM", "OPENSEA", "SUPPLY — TBA", "PRICE — TBA", "LAUNCHING ON ROBINHOOD"];
 
@@ -85,17 +85,13 @@ export default function Hero({ onOpenWhitelist }: { onOpenWhitelist: () => void 
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "28px",
+              justifyContent: "center",
+              marginBottom: "24px",
               opacity: ready ? undefined : 0,
               animation: ready ? "folksFadeUp 0.7s ease 0.05s both" : "none",
             }}
           >
-            <FolksSeal size={30} />
-            <span style={{ fontFamily: mono, fontSize: "0.6rem", letterSpacing: "0.2em", textTransform: "uppercase", color: faint }}>
-              Registry &middot; 3,000 Folks
-            </span>
+            <img src="/Folks-logo.png" alt="Folks" style={{ width: "112px", height: "auto", display: "block" }} />
           </div>
 
           <h1
