@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import WhitelistPage from "@/pages/whitelist";
+import MarketplacePage from "@/pages/marketplace";
 import AuthCallback from "@/pages/auth/callback";
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/whitelist" component={WhitelistPage} />
+            <Route path="/marketplace" component={MarketplacePage} />
             <Route path="/auth/callback" component={AuthCallback} />
             <Route>
               <div
@@ -26,7 +28,7 @@ function App() {
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontWeight: 700,
                   fontSize: "2rem",
-                  color: "#3E9B5C",
+                  color: "#D4F95C",
                 }}
               >
                 404 — NOT FOUND
