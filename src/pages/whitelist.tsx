@@ -43,10 +43,17 @@ const microLabel: React.CSSProperties = {
   color: "rgba(245,247,245,0.42)",
 };
 
-function msUntilNextMidnightUTC() {
-  const now = new Date();
-  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
-  return next.getTime() - now.getTime();
+/** Fixed reference point the 48h cycle counts from — arbitrary, just has to
+ * be the same for everyone. Change ROTATION_HOURS here if this ever needs
+ * to be a different length again. */
+const ROTATION_ANCHOR_MS = Date.UTC(2026, 0, 1, 0, 0, 0);
+const ROTATION_HOURS = 48;
+const ROTATION_MS = ROTATION_HOURS * 60 * 60 * 1000;
+
+function msUntilNextRotation() {
+  const elapsed = Date.now() - ROTATION_ANCHOR_MS;
+  const msIntoCycle = ((elapsed % ROTATION_MS) + ROTATION_MS) % ROTATION_MS;
+  return ROTATION_MS - msIntoCycle;
 }
 function formatCountdown(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -366,7 +373,7 @@ export default function WhitelistPage() {
   const [checking, setChecking] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [lockCountdown, setLockCountdown] = useState(formatCountdown(msUntilNextMidnightUTC()));
+  const [lockCountdown, setLockCountdown] = useState(formatCountdown(msUntilNextRotation()));
 
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get("ref");
@@ -374,7 +381,7 @@ export default function WhitelistPage() {
   }, []);
 
   useEffect(() => {
-    const id = setInterval(() => setLockCountdown(formatCountdown(msUntilNextMidnightUTC())), 1000);
+    const id = setInterval(() => setLockCountdown(formatCountdown(msUntilNextRotation())), 1000);
     return () => clearInterval(id);
   }, []);
 
