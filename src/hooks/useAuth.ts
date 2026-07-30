@@ -45,11 +45,12 @@ export function useAuth() {
       provider: "x",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        // Needed to call the X API afterward (verify-post) rather than
-        // just to log someone in. "offline.access" is what gets us a
-        // refresh_token so verification still works after the initial
-        // ~2-hour access token expires.
-        scopes: "tweet.read users.read offline.access",
+        // tweet.read + users.read cover the timeline-based checks (Retweet,
+        // Comment). like.read is specifically required for the separate
+        // liked_tweets endpoint the Like check uses — missing it causes X
+        // to reject just that one call, which is why Like can fail while
+        // Retweet/Comment succeed.
+        scopes: "tweet.read users.read like.read offline.access",
       },
     });
     if (error) console.error(error.message);
