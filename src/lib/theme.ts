@@ -30,15 +30,19 @@ export const gold      = "#2E5AAC";
 export const goldLight = "#4F7FD1";
 export const goldDeep  = "#1B3A73";
 
-// Whitelist accent — bright lime, unrelated to the blue above so buttons/
-// highlights on the tasks page stay clearly legible against dark backgrounds.
-// "violet" is the legacy name — value is a lime-green, not purple. Kept the
-// name so Hero.tsx and whitelist.tsx pick up the color without each needing
-// to be touched individually.
-export const violet      = "#D4F95C";
-export const violetLight = "#E4FF8C";
-export const violetDeep  = "#9FCC2E";
-export const violetLine  = "rgba(212,249,92,0.22)";
+// Secondary accent — a brighter sky blue, paired with the deeper navy
+// "gold" above. Both blue now; Early Role (which used to justify a
+// separate green/lime pairing) is gone, so there's no reason for a second
+// unrelated hue anymore. Kept bright enough that the dark "ink" text
+// already used on top of it (buttons, badges) stays legible without
+// needing to touch every place that uses it.
+// "violet" is the legacy name — value is a bright blue, not purple. Kept
+// the name so Hero.tsx, GetWhitelistedModal.tsx, and whitelist.tsx pick up
+// the color without each needing to be touched individually.
+export const violet      = "#7EC8FF";
+export const violetLight = "#A9DDFF";
+export const violetDeep  = "#3E8FD6";
+export const violetLine  = "rgba(126,200,255,0.22)";
 
 export const white = "#f5f7f5";
 export const muted = "rgba(245,247,245,0.55)";
