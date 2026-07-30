@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { body, FONT_LINK, gold, ink } from "../lib/theme";
-import { consumePostAuthAction } from "../hooks/useAuth";
+import { body, FONT_LINK, violet, ink } from "../lib/theme";
 
 import Header from "../components/Header";
 import Hero from "../components/Hero";
@@ -8,11 +7,9 @@ import { Divider } from "../components/shared";
 import About from "../components/About";
 import FAQ from "../components/FAQ";
 import Footer from "../components/Footer";
-import EarlyRoleModal from "../components/EarlyRoleModal";
 import WhitelistModal from "../components/WhitelistModal";
 
 export default function Home() {
-  const [earlyRoleOpen, setEarlyRoleOpen] = useState(false);
   const [whitelistOpen, setWhitelistOpen] = useState(false);
 
   useEffect(() => {
@@ -25,12 +22,6 @@ export default function Home() {
     };
   }, []);
 
-  // Only Early Role uses real X OAuth, so only it needs to reopen after the
-  // /auth/callback redirect brings the person back to this page.
-  useEffect(() => {
-    if (consumePostAuthAction() === "early_role") setEarlyRoleOpen(true);
-  }, []);
-
   return (
     <div style={{ background: ink, minHeight: "100vh", fontFamily: body, color: "#fff", overflowX: "hidden" }}>
       <style>{`
@@ -40,13 +31,13 @@ export default function Home() {
         *{box-sizing:border-box;}
         ::placeholder{color:rgba(245,247,245,0.22);}
         ::-webkit-scrollbar{width:3px;}
-        ::-webkit-scrollbar-thumb{background:${gold}44;border-radius:4px;}
+        ::-webkit-scrollbar-thumb{background:${violet}44;border-radius:4px;}
         html{scroll-behavior:smooth;}
         a{color:inherit;text-decoration:none;}
       `}</style>
 
       <Header />
-      <Hero onOpenEarlyRole={() => setEarlyRoleOpen(true)} onOpenWhitelist={() => setWhitelistOpen(true)} />
+      <Hero onOpenWhitelist={() => setWhitelistOpen(true)} />
 
       <Divider />
       <About />
@@ -55,7 +46,6 @@ export default function Home() {
 
       <Footer />
 
-      <EarlyRoleModal open={earlyRoleOpen} onClose={() => setEarlyRoleOpen(false)} />
       <WhitelistModal open={whitelistOpen} onClose={() => setWhitelistOpen(false)} />
     </div>
   );
