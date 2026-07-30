@@ -152,7 +152,7 @@ export default function Hero({ onOpenWhitelist }: { onOpenWhitelist: () => void 
               Get Whitelisted
             </button>
             <p style={{ margin: "8px 0 0", fontFamily: mono, fontSize: "0.6rem", color: faint }}>
-              No cap &middot; connect X &middot; earn points
+              You're early &middot; connect X &middot; earn points
             </p>
           </div>
 
