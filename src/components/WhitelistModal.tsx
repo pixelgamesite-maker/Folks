@@ -1,32 +1,23 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useState } from "react";
 import { body, display, ink, mono, muted, violet, violetLine } from "../lib/theme";
 import { useAuth, setPostAuthAction } from "../hooks/useAuth";
 
 /**
- * "Get Whitelisted" gate. If the person is already signed in with X (say,
- * from having used Early Role earlier in the session), this skips straight
- * to /whitelist — no need to reconnect. Otherwise it's just a small prompt.
- * The actual tasks + points live on the dedicated /whitelist page, not here.
+ * Connect-X gate for the "Get Whitelisted" flow. Just ensures someone's
+ * signed in — home.tsx decides what happens next (opening the Earn
+ * Points / Marketplace choice), not this component. If the person is
+ * already signed in, home.tsx skips opening this entirely rather than
+ * this modal deciding to redirect itself.
  */
 export default function WhitelistModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const auth = useAuth();
-  const [, navigate] = useLocation();
   const [connecting, setConnecting] = useState(false);
   const [authError, setAuthError] = useState("");
-
-  useEffect(() => {
-    if (open && auth.user) {
-      onClose();
-      navigate("/whitelist");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, auth.user]);
 
   async function connectX() {
     setAuthError("");
     setConnecting(true);
-    setPostAuthAction("whitelist");
+    setPostAuthAction("choice");
     const error = await auth.signInWithX();
     if (error) {
       setConnecting(false);
@@ -35,7 +26,7 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
     // On success the browser navigates to X, so nothing else to do here.
   }
 
-  if (!open || auth.user) return null;
+  if (!open) return null;
 
   return (
     <div
@@ -80,11 +71,11 @@ export default function WhitelistModal({ open, onClose }: { open: boolean; onClo
         </button>
 
         <p style={{ fontFamily: mono, fontSize: "0.58rem", letterSpacing: "0.2em", textTransform: "uppercase", color: violet, margin: "0 0 10px" }}>
-          Whitelist &middot; No Cap
+          Get Whitelisted
         </p>
         <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.2rem", margin: "0 0 10px", color: "#fff" }}>Connect X To Continue</p>
         <p style={{ fontFamily: body, fontSize: "0.82rem", color: muted, margin: "0 0 22px", lineHeight: 1.55 }}>
-          Sign in with X to see your tasks and start earning points toward the Whitelist.
+          Sign in with X to continue.
         </p>
 
         <button
