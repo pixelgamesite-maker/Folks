@@ -28,7 +28,7 @@ function App() {
                   fontFamily: "'Space Grotesk', sans-serif",
                   fontWeight: 700,
                   fontSize: "2rem",
-                  color: "#D4F95C",
+                  color: "#7EC8FF",
                 }}
               >
                 404 — NOT FOUND
