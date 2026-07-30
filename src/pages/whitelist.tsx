@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { body, display, ink, mono, muted, violet, violetLight, violetLine } from "../lib/theme";
 import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction, setReferralCode } from "../hooks/useAuth";
-import { FolksSeal } from "../components/shared";
+import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
 const X_HANDLE = "thefolkseth_";
 /** Real pinned post — swap this ID whenever the client changes which post is pinned. */
@@ -11,15 +11,10 @@ const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
 const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
 const RETWEET_URL = `https://twitter.com/intent/retweet?tweet_id=${PINNED_TWEET_ID}`;
+const BULLISH_INTENT_TEXT = "Feeling bullish on @thefolkseth_.";
+const BULLISH_COMPOSE_URL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(BULLISH_INTENT_TEXT)}`;
 
-/** How long someone has to be "away" on X before a task auto-completes.
- *  Same trade-off as most social-quest platforms: not real verification,
- *  just enough friction that instant-clicking without doing anything is a
- *  little less trivial. Real API verification (see verify-post) is still
- *  there if you want it for a higher-value one-off task later. */
 const COUNTDOWN_SECS = 60;
-
-/** Page background — lighter than the rest of the site on purpose, per feedback. */
 const pageBg = "#15131c";
 const cardBg = "rgba(255,255,255,0.03)";
 const cardBorder = violetLine;
@@ -29,8 +24,8 @@ const inputStyle: React.CSSProperties = {
   background: "rgba(0,0,0,0.25)",
   border: `1px solid ${cardBorder}`,
   borderRadius: "8px",
-  padding: "11px 12px",
-  fontSize: "0.85rem",
+  padding: "10px 12px",
+  fontSize: "0.82rem",
   color: "#fff",
   fontFamily: body,
   outline: "none",
@@ -39,18 +34,34 @@ const inputStyle: React.CSSProperties = {
 
 const microLabel: React.CSSProperties = {
   fontFamily: mono,
-  fontSize: "0.62rem",
+  fontSize: "0.6rem",
   letterSpacing: "0.1em",
   textTransform: "uppercase",
   color: "rgba(245,247,245,0.42)",
 };
 
-function Panel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+function msUntilNextMidnightUTC() {
+  const now = new Date();
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+  return next.getTime() - now.getTime();
+}
+function formatCountdown(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+function ListContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ border: `1px solid ${cardBorder}`, borderRadius: "14px", padding: "18px", background: cardBg, ...style }}>
+    <div style={{ border: `1px solid ${cardBorder}`, borderRadius: "14px", overflow: "hidden", background: cardBg }}>
       {children}
     </div>
   );
+}
+function ListRow({ children, last }: { children: React.ReactNode; last?: boolean }) {
+  return <div style={{ padding: "14px 16px", borderBottom: last ? "none" : `1px solid ${cardBorder}` }}>{children}</div>;
 }
 
 /** Small placeholder avatar — swap for the real image whenever it's ready. */
@@ -80,36 +91,88 @@ function Avatar({ url, initial, size = 40 }: { url?: string | null; initial: str
   );
 }
 
-/** Click → opens the link → counts down → then (if a verify mode is given)
- * actually checks with X before marking done. Falls back to the old
- * simple auto-complete if no verifyMode is passed (used for Follow, where
- * checking "did they follow" reliably via the API is murkier and the
- * task is low-stakes enough not to bother). */
-function CountdownTask({
+/** Compact status/action control shared by every row's right-hand side. */
+function RowAction({
+  phase,
+  secs,
+  actionLabel,
+  onStart,
+  failReason,
+}: {
+  phase: "idle" | "counting" | "checking" | "failed" | "done";
+  secs: number;
+  actionLabel: string;
+  onStart: () => void;
+  failReason?: string;
+}) {
+  if (phase === "done") {
+    return (
+      <span style={{ fontFamily: mono, fontSize: "0.62rem", fontWeight: 700, color: violet, textTransform: "uppercase" }}>Done</span>
+    );
+  }
+  if (phase === "counting") {
+    return <span style={{ fontFamily: mono, fontSize: "0.66rem", fontWeight: 700, color: violet }}>{secs}s</span>;
+  }
+  if (phase === "checking") {
+    return <span style={{ fontFamily: mono, fontSize: "0.62rem", color: violet }}>Checking...</span>;
+  }
+  return (
+    <div style={{ textAlign: "right" }}>
+      <button
+        onClick={onStart}
+        style={{
+          fontFamily: mono,
+          fontSize: "0.62rem",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          color: ink,
+          background: violet,
+          border: "none",
+          borderRadius: "6px",
+          padding: "7px 14px",
+          cursor: "pointer",
+        }}
+      >
+        {phase === "failed" ? "Retry" : actionLabel}
+      </button>
+      {phase === "failed" && failReason && (
+        <p style={{ fontSize: "0.58rem", color: "#d96b5a", margin: "4px 0 0", maxWidth: "120px" }}>{failReason}</p>
+      )}
+    </div>
+  );
+}
+
+/** Click → opens the link → counts down → verifies with X → done. Used for
+ * Follow (no verifyMode, simple auto-complete) and Like/Retweet/Comment
+ * (verifyMode set, real check against the account's own data). */
+function CountdownRow({
+  label,
+  points,
   actionLabel,
   actionHref,
   done,
   onComplete,
   verifyMode,
   targetTweetId,
+  last,
 }: {
+  label: string;
+  points: number;
   actionLabel: string;
   actionHref: string;
   done: boolean;
   onComplete: () => void;
   verifyMode?: "like" | "retweet" | "reply";
   targetTweetId?: string;
+  last?: boolean;
 }) {
   const [phase, setPhase] = useState<"idle" | "counting" | "checking" | "failed">("idle");
   const [secs, setSecs] = useState(COUNTDOWN_SECS);
   const [failReason, setFailReason] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   async function finish() {
     if (!verifyMode) {
@@ -117,11 +180,9 @@ function CountdownTask({
       return;
     }
     setPhase("checking");
-    const { data, error } = await supabase.functions.invoke("verify-post", {
-      body: { mode: verifyMode, targetTweetId },
-    });
+    const { data, error } = await supabase.functions.invoke("verify-post", { body: { mode: verifyMode, targetTweetId } });
     if (error || !data?.verified) {
-      setFailReason(data?.reason || "Couldn't verify that yet. Try again.");
+      setFailReason(data?.reason || "Couldn't verify yet.");
       setPhase("failed");
       return;
     }
@@ -146,85 +207,106 @@ function CountdownTask({
     }, 1000);
   }
 
-  if (done) {
-    return (
-      <div
-        style={{
-          textAlign: "center",
-          padding: "9px",
-          borderRadius: "7px",
-          background: `${violet}22`,
-          color: violet,
-          fontFamily: mono,
-          fontSize: "0.64rem",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-        }}
-      >
-        Completed
-      </div>
-    );
-  }
-  if (phase === "counting") {
-    return (
-      <div
-        style={{
-          textAlign: "center",
-          padding: "9px",
-          borderRadius: "7px",
-          border: `1px solid ${cardBorder}`,
-          color: violet,
-          fontFamily: mono,
-          fontSize: "0.7rem",
-          fontWeight: 700,
-        }}
-      >
-        Waiting... {secs}s
-      </div>
-    );
-  }
-  if (phase === "checking") {
-    return (
-      <div
-        style={{
-          textAlign: "center",
-          padding: "9px",
-          borderRadius: "7px",
-          border: `1px solid ${cardBorder}`,
-          color: violet,
-          fontFamily: mono,
-          fontSize: "0.68rem",
-          fontWeight: 700,
-        }}
-      >
-        Checking with X...
-      </div>
-    );
-  }
   return (
-    <>
-      <button
-        onClick={start}
-        style={{
-          width: "100%",
-          textAlign: "center",
-          fontFamily: mono,
-          fontSize: "0.64rem",
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: ink,
-          background: violet,
-          border: "none",
-          borderRadius: "7px",
-          padding: "9px",
-          cursor: "pointer",
-        }}
-      >
-        {phase === "failed" ? "Try Again" : actionLabel}
-      </button>
-      {phase === "failed" && <p style={{ fontSize: "0.62rem", color: "#d96b5a", margin: "6px 0 0", textAlign: "center" }}>{failReason}</p>}
-    </>
+    <ListRow last={last}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+        <div>
+          <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>{label}</p>
+          <p style={{ margin: "2px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+{points} pts</p>
+        </div>
+        <RowAction phase={done ? "done" : phase} secs={secs} actionLabel={actionLabel} onStart={start} failReason={failReason} />
+      </div>
+    </ListRow>
+  );
+}
+
+/** The one task that needs a submitted link — an arbitrary self-authored
+ * post, not tied to one fixed tweet, so it can't be auto-detected the way
+ * Like/Retweet/Comment can. */
+function BullishPostRow({ done, onComplete, last }: { done: boolean; onComplete: () => void; last?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const [url, setUrl] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [failReason, setFailReason] = useState("");
+
+  async function verify() {
+    setChecking(true);
+    setFailReason("");
+    const { data, error } = await supabase.functions.invoke("verify-post", { body: { mode: "mention", url } });
+    setChecking(false);
+    if (error || !data?.verified) {
+      setFailReason(data?.reason || "Couldn't verify that post.");
+      return;
+    }
+    onComplete();
+  }
+
+  return (
+    <ListRow last={last}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: expanded && !done ? "10px" : 0 }}>
+        <div>
+          <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>Make a bullish post about Folks</p>
+          <p style={{ margin: "2px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+100 pts</p>
+        </div>
+        {done ? (
+          <span style={{ fontFamily: mono, fontSize: "0.62rem", fontWeight: 700, color: violet, textTransform: "uppercase" }}>Done</span>
+        ) : (
+          !expanded && (
+            <button
+              onClick={() => {
+                window.open(BULLISH_COMPOSE_URL, "_blank");
+                setExpanded(true);
+              }}
+              style={{
+                fontFamily: mono,
+                fontSize: "0.62rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: ink,
+                background: violet,
+                border: "none",
+                borderRadius: "6px",
+                padding: "7px 14px",
+                cursor: "pointer",
+              }}
+            >
+              Compose
+            </button>
+          )
+        )}
+      </div>
+      {expanded && !done && (
+        <div>
+          <input placeholder="https://x.com/you/status/..." value={url} onChange={(e) => setUrl(e.target.value)} style={inputStyle} />
+          {url && !isValidUrl(url) && <p style={{ fontSize: "0.6rem", color: "#d96b5a", margin: "5px 0 0" }}>Needs a valid https:// link.</p>}
+          {isValidUrl(url) && (
+            <button
+              onClick={verify}
+              disabled={checking}
+              style={{
+                marginTop: "8px",
+                width: "100%",
+                fontFamily: mono,
+                fontSize: "0.62rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: ink,
+                background: violet,
+                border: "none",
+                borderRadius: "6px",
+                padding: "8px",
+                cursor: checking ? "wait" : "pointer",
+              }}
+            >
+              {checking ? "Checking..." : "Verify Post"}
+            </button>
+          )}
+          {failReason && <p style={{ fontSize: "0.6rem", color: "#d96b5a", margin: "6px 0 0" }}>{failReason}</p>}
+        </div>
+      )}
+    </ListRow>
   );
 }
 
@@ -234,7 +316,11 @@ export default function WhitelistPage() {
 
   const [points, setPoints] = useState<number | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralCode, setReferralCodeState] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletInput, setWalletInput] = useState("");
+  const [walletErr, setWalletErr] = useState("");
+  const [savingWallet, setSavingWallet] = useState(false);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -242,10 +328,16 @@ export default function WhitelistPage() {
   const [checking, setChecking] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lockCountdown, setLockCountdown] = useState(formatCountdown(msUntilNextMidnightUTC()));
 
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (ref) setReferralCode(ref);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setLockCountdown(formatCountdown(msUntilNextMidnightUTC())), 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -264,25 +356,22 @@ export default function WhitelistPage() {
     let cancelled = false;
     (async () => {
       const [{ data: profile }, { data: completions }] = await Promise.all([
-        supabase.from("folks_profiles").select("points, avatar_url, referral_code").eq("id", auth.user!.id).maybeSingle(),
+        supabase.from("folks_profiles").select("points, avatar_url, referral_code, wallet_address").eq("id", auth.user!.id).maybeSingle(),
         supabase.from("folks_task_completions").select("task_id").eq("user_id", auth.user!.id),
       ]);
       if (cancelled) return;
       if (profile) {
         setPoints(profile.points ?? 0);
         setAvatarUrl(profile.avatar_url ?? null);
-        setReferralCode(profile.referral_code ?? null);
+        setReferralCodeState(profile.referral_code ?? null);
+        setWalletAddress(profile.wallet_address ?? null);
       }
       const map: Record<string, boolean> = {};
-      (completions ?? []).forEach((r: any) => {
-        map[r.task_id] = true;
-      });
+      (completions ?? []).forEach((r: any) => { map[r.task_id] = true; });
       setDone(map);
       setChecking(false);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [auth.user]);
 
   async function refreshPoints() {
@@ -304,8 +393,20 @@ export default function WhitelistPage() {
     await auth.signInWithX();
   }
 
-  const referralLink = referralCode ? `${typeof window !== "undefined" ? window.location.origin : ""}/whitelist?ref=${referralCode}` : "";
+  async function saveWallet() {
+    if (!auth.user || !isValidEvm(walletInput)) return;
+    setWalletErr("");
+    setSavingWallet(true);
+    const { error } = await supabase.from("folks_profiles").update({ wallet_address: walletInput.trim() }).eq("id", auth.user.id);
+    setSavingWallet(false);
+    if (error) {
+      setWalletErr(error.code === "23505" ? "That wallet is already bound to another profile." : "Something went wrong. Try again.");
+      return;
+    }
+    setWalletAddress(walletInput.trim());
+  }
 
+  const referralLink = referralCode ? `${typeof window !== "undefined" ? window.location.origin : ""}/whitelist?ref=${referralCode}` : "";
   function copyReferralLink() {
     if (!referralLink) return;
     navigator.clipboard.writeText(referralLink);
@@ -313,12 +414,9 @@ export default function WhitelistPage() {
     setTimeout(() => setCopied(false), 1600);
   }
 
-  const allTasksDone = !!(done.follow && done.like && done.retweet && done.comment);
-
   const wrap: React.CSSProperties = { minHeight: "100vh", background: pageBg, color: "#fff", fontFamily: body };
   const inner: React.CSSProperties = { maxWidth: "440px", margin: "0 auto", padding: "24px 20px 60px" };
 
-  /* ── Not signed in ── */
   if (!auth.user) {
     return (
       <div style={wrap}>
@@ -364,10 +462,8 @@ export default function WhitelistPage() {
     );
   }
 
-  /* ── Main page ── */
   return (
     <div style={wrap}>
-      {/* Header — brand mark left, profile avatar right, matching a real app header. Full-bleed and sticky, independent of the content column's max-width. */}
       <div
         style={{
           position: "sticky",
@@ -397,7 +493,7 @@ export default function WhitelistPage() {
                   position: "absolute",
                   top: "calc(100% + 10px)",
                   right: 0,
-                  width: "260px",
+                  width: "270px",
                   background: "#1c1926",
                   border: `1px solid ${cardBorder}`,
                   borderRadius: "14px",
@@ -413,9 +509,51 @@ export default function WhitelistPage() {
                   </div>
 
                   <p style={{ ...microLabel, margin: "0 0 2px" }}>Points Balance</p>
-                  <p style={{ fontFamily: display, fontSize: "1.9rem", fontWeight: 700, color: violet, margin: "0 0 14px" }}>
+                  <p style={{ fontFamily: display, fontSize: "1.7rem", fontWeight: 700, color: violet, margin: "0 0 14px" }}>
                     {(points ?? 0).toLocaleString()}
                   </p>
+
+                  <p style={{ ...microLabel, margin: "0 0 6px" }}>Wallet</p>
+                  {walletAddress ? (
+                    <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "7px", padding: "8px 10px", marginBottom: "14px" }}>
+                      <span style={{ fontFamily: mono, fontSize: "0.66rem", color: violet }}>
+                        {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                      </span>
+                      <span style={{ fontFamily: mono, fontSize: "0.58rem", color: "rgba(245,247,245,0.35)", marginLeft: "6px" }}>Bound</span>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: "14px" }}>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <input
+                          placeholder="0x..."
+                          value={walletInput}
+                          onChange={(e) => setWalletInput(e.target.value)}
+                          style={{ ...inputStyle, fontFamily: mono, fontSize: "0.7rem", padding: "8px 10px" }}
+                        />
+                        <button
+                          onClick={saveWallet}
+                          disabled={!isValidEvm(walletInput) || savingWallet}
+                          style={{
+                            background: isValidEvm(walletInput) ? violet : "rgba(255,255,255,0.06)",
+                            color: isValidEvm(walletInput) ? ink : "rgba(245,247,245,0.3)",
+                            border: "none",
+                            borderRadius: "7px",
+                            padding: "0 12px",
+                            fontFamily: mono,
+                            fontSize: "0.62rem",
+                            fontWeight: 700,
+                            cursor: isValidEvm(walletInput) ? "pointer" : "default",
+                          }}
+                        >
+                          {savingWallet ? "..." : "Bind"}
+                        </button>
+                      </div>
+                      {walletInput && !isValidEvm(walletInput) && (
+                        <p style={{ fontSize: "0.58rem", color: "#d96b5a", margin: "5px 0 0" }}>Not a valid EVM address.</p>
+                      )}
+                      {walletErr && <p style={{ fontSize: "0.58rem", color: "#d96b5a", margin: "5px 0 0" }}>{walletErr}</p>}
+                    </div>
+                  )}
 
                   <p style={{ ...microLabel, margin: "0 0 6px" }}>Your Referral Link</p>
                   <div style={{ display: "flex", gap: "6px" }}>
@@ -479,126 +617,31 @@ export default function WhitelistPage() {
       </div>
 
       <div style={inner}>
-        {/* Follow — standalone, one-time */}
-        <div style={{ marginBottom: "22px" }}>
-          <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>Step One</p>
-          <Panel>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-              <div>
-                <p style={{ margin: 0, fontFamily: display, fontSize: "0.98rem", fontWeight: 600, color: "#fff" }}>Follow Folks</p>
-                <span
-                  style={{
-                    fontFamily: mono,
-                    fontSize: "0.56rem",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "rgba(245,247,245,0.4)",
-                    border: `1px solid ${cardBorder}`,
-                    borderRadius: "999px",
-                    padding: "2px 8px",
-                    display: "inline-block",
-                    marginTop: "4px",
-                  }}
-                >
-                  One-Time
-                </span>
-              </div>
-              <span style={{ fontFamily: mono, fontSize: "0.72rem", fontWeight: 700, color: done.follow ? violet : "rgba(245,247,245,0.35)" }}>+10 pts</span>
-            </div>
-            <CountdownTask actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} />
-          </Panel>
+        {/* One-time tasks */}
+        <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>One-Time Tasks</p>
+        <ListContainer>
+          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} />
+          <BullishPostRow done={!!done.bullish_post} onComplete={() => completeTask("bullish_post")} last />
+        </ListContainer>
+
+        {/* Today's tasks */}
+        <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
+        <ListContainer>
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} verifyMode="like" targetTweetId={PINNED_TWEET_ID} />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} verifyMode="retweet" targetTweetId={PINNED_TWEET_ID} />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} verifyMode="reply" targetTweetId={PINNED_TWEET_ID} last />
+        </ListContainer>
+
+        {/* Tomorrow's tasks — locked */}
+        <p style={{ ...microLabel, color: "rgba(245,247,245,0.35)", margin: "22px 0 10px" }}>Tomorrow's Tasks</p>
+        <div style={{ border: `1px solid ${cardBorder}`, borderRadius: "14px", padding: "20px", textAlign: "center", opacity: 0.6 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(245,247,245,0.4)" strokeWidth="1.6" style={{ marginBottom: "8px" }}>
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <p style={{ fontFamily: display, fontSize: "0.88rem", fontWeight: 600, color: "#fff", margin: "0 0 4px" }}>New tasks unlock in</p>
+          <p style={{ fontFamily: mono, fontSize: "1.1rem", fontWeight: 700, color: violet, margin: 0 }}>{lockCountdown}</p>
         </div>
-
-        {/* Like / Retweet / Comment — vertical line, daily-rotating tasks live here */}
-        <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>Then Complete These</p>
-        <div style={{ position: "relative", marginBottom: "22px" }}>
-          <div style={{ position: "absolute", left: "13px", top: "14px", bottom: "14px", width: "1px", background: cardBorder }} />
-
-          {[
-            { n: "like", label: "Like the pinned post", pts: 25, actionLabel: "Like", href: LIKE_URL, mode: "like" as const },
-            { n: "retweet", label: "Retweet the pinned post", pts: 25, actionLabel: "Retweet", href: RETWEET_URL, mode: "retweet" as const },
-            { n: "comment", label: "Comment and tag 2 frens", pts: 50, actionLabel: "Comment", href: PINNED_TWEET_URL, mode: "reply" as const },
-          ].map((task, i) => (
-            <div key={task.n} style={{ display: "flex", gap: "14px", marginBottom: i < 2 ? "14px" : 0 }}>
-              <div
-                style={{
-                  width: "27px",
-                  height: "27px",
-                  borderRadius: "50%",
-                  border: `1px solid ${done[task.n] ? violet : cardBorder}`,
-                  background: done[task.n] ? violet : pageBg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  zIndex: 1,
-                }}
-              >
-                {done[task.n] ? (
-                  <svg width="10" height="8" viewBox="0 0 9 7" fill="none">
-                    <path d="M1 3.5L3.2 5.8L8 1" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <span style={{ fontFamily: mono, fontSize: "0.6rem", color: "rgba(245,247,245,0.4)" }}>{i + 2}</span>
-                )}
-              </div>
-              <Panel style={{ flex: 1 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-                  <p style={{ margin: 0, fontFamily: display, fontSize: "0.92rem", fontWeight: 600, color: "#fff" }}>{task.label}</p>
-                  <span style={{ fontFamily: mono, fontSize: "0.68rem", fontWeight: 700, color: done[task.n] ? violet : "rgba(245,247,245,0.35)" }}>
-                    +{task.pts} pts
-                  </span>
-                </div>
-                <CountdownTask
-                  actionLabel={task.actionLabel}
-                  actionHref={task.href}
-                  done={!!done[task.n]}
-                  onComplete={() => completeTask(task.n)}
-                  verifyMode={task.mode}
-                  targetTweetId={PINNED_TWEET_ID}
-                />
-              </Panel>
-            </div>
-          ))}
-        </div>
-
-        {allTasksDone && (
-          <Panel style={{ textAlign: "center", marginBottom: "22px" }}>
-            <p style={{ ...microLabel, color: violet, margin: "0 0 6px" }}>All Tasks Complete</p>
-            <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.1rem", margin: "0 0 6px", color: "#fff" }}>
-              {(points ?? 0).toLocaleString()} points earned
-            </p>
-            <p style={{ fontFamily: body, fontSize: "0.8rem", color: muted, margin: 0, lineHeight: 1.5 }}>
-              Check back for new tasks — this list updates regularly.
-            </p>
-          </Panel>
-        )}
-
-        {/* Wallet — visible so people know it's coming, not interactive yet */}
-        <p style={{ ...microLabel, color: "rgba(245,247,245,0.35)", margin: "0 0 10px" }}>Coming Soon</p>
-        <Panel style={{ opacity: 0.55 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <p style={{ margin: 0, fontFamily: display, fontSize: "0.92rem", fontWeight: 600, color: "#fff" }}>Submit Your Wallet</p>
-            <span
-              style={{
-                fontFamily: mono,
-                fontSize: "0.56rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "rgba(245,247,245,0.4)",
-                border: `1px solid ${cardBorder}`,
-                borderRadius: "999px",
-                padding: "2px 8px",
-              }}
-            >
-              Locked
-            </span>
-          </div>
-          <input placeholder="0x... (opens soon)" disabled value="" style={{ ...inputStyle, cursor: "not-allowed" }} />
-          <p style={{ fontFamily: body, fontSize: "0.72rem", color: muted, margin: "8px 0 0", lineHeight: 1.5 }}>
-            Wallet submission opens once whitelist selection begins. Keep earning points until then.
-          </p>
-        </Panel>
       </div>
     </div>
   );
