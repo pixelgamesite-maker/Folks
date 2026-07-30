@@ -44,9 +44,13 @@ const microLabel: React.CSSProperties = {
 };
 
 /** Fixed reference point the 48h cycle counts from — arbitrary, just has to
- * be the same for everyone. Change ROTATION_HOURS here if this ever needs
- * to be a different length again. */
-const ROTATION_ANCHOR_MS = Date.UTC(2026, 0, 1, 0, 0, 0);
+ * be the same for everyone. Re-anchored to a recent date rather than one
+ * from months ago, since the remaining time on any given day is otherwise
+ * unpredictable and impossible to sanity-check by eye (an old anchor can
+ * make a genuine 48h cycle coincidentally look capped at 24h on some days
+ * — that's what happened here, not an actual bug in the cycle length).
+ * Change ROTATION_HOURS here if this ever needs to be a different length. */
+const ROTATION_ANCHOR_MS = Date.UTC(2026, 6, 31, 0, 0, 0);
 const ROTATION_HOURS = 48;
 const ROTATION_MS = ROTATION_HOURS * 60 * 60 * 1000;
 
