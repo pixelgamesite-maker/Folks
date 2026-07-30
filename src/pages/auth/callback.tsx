@@ -69,6 +69,9 @@ export default function AuthCallback() {
 
       const action = peekPostAuthAction();
       navigate(action === "whitelist" ? "/whitelist" : action === "marketplace" ? "/marketplace" : "/");
+      // "choice" and "early_role" (unused now) both land on "/" — the
+      // homepage checks consumePostAuthAction() on mount to reopen the
+      // right popup.
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
