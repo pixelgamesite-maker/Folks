@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { body, display, faint, gold, ink, line, mono, muted, violet, violetLight } from "../lib/theme";
 import { Guilloche } from "./shared";
 
-const TICKER_ITEMS = ["OPENSEA", "SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ETHEREUM"];
+const TICKER_ITEMS = ["OPENSEA", "SUPPLY: 3000", "PRICE: TBA", "LAUNCHING ON ETHEREUM"];
 
 const MINT_STATS: [string, string][] = [
-  ["TBA", "Supply"],
+  ["3000", "Supply"],
   ["TBA", "Mint Price"],
   ["Ethereum", "Chain"],
   ["OpenSea", "Launchpad"],
