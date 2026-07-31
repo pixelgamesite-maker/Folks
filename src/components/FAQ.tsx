@@ -3,7 +3,6 @@ import { body, display, gold, line, muted } from "../lib/theme";
 import { Label, RevealSection } from "./shared";
 
 const FAQS = [
-  { q: "What is Folks?", a: "A registry of hand drawn characters, launching on Ethereum." },
   { q: "What is the Whitelist?", a: "Connect your X account and complete tasks to earn points. Everyone who earns points has a shot at a spot." },
   { q: "Why does connecting X matter?", a: "It verifies you're a real account, not a duplicate or a bot, before your tasks and points get counted." },
   { q: "What tasks do I need to complete?", a: "A few one-time tasks (like following and making a bullish post), plus daily tasks that refreshes every 24 hours." },
