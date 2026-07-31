@@ -279,7 +279,7 @@ function BullishPostRow({ done, onComplete, last }: { done: boolean; onComplete:
           <p style={{ margin: "2px 0 0", fontFamily: body, fontSize: "0.68rem", color: "rgba(245,247,245,0.4)", lineHeight: 1.4, maxWidth: "220px" }}>
             Write a post about Folks and mention @{X_HANDLE}.
           </p>
-          <p style={{ margin: "4px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+100 pts</p>
+          <p style={{ margin: "4px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+500 pts</p>
         </div>
         {done ? (
           <span
@@ -366,6 +366,7 @@ export default function WhitelistPage() {
   const [points, setPoints] = useState<number | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [referralCode, setReferralCodeState] = useState<string | null>(null);
+  const [referralCount, setReferralCount] = useState(0);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletInput, setWalletInput] = useState("");
   const [walletErr, setWalletErr] = useState("");
@@ -405,7 +406,7 @@ export default function WhitelistPage() {
     let cancelled = false;
     (async () => {
       const [{ data: profile }, { data: completions }] = await Promise.all([
-        supabase.from("folks_profiles").select("points, avatar_url, referral_code, wallet_address").eq("id", auth.user!.id).maybeSingle(),
+        supabase.from("folks_profiles").select("points, avatar_url, referral_code, referral_count, wallet_address").eq("id", auth.user!.id).maybeSingle(),
         supabase.from("folks_task_completions").select("task_id").eq("user_id", auth.user!.id),
       ]);
       if (cancelled) return;
@@ -413,6 +414,7 @@ export default function WhitelistPage() {
         setPoints(profile.points ?? 0);
         setAvatarUrl(profile.avatar_url ?? null);
         setReferralCodeState(profile.referral_code ?? null);
+        setReferralCount(profile.referral_count ?? 0);
         setWalletAddress(profile.wallet_address ?? null);
       }
       const map: Record<string, boolean> = {};
@@ -648,6 +650,9 @@ export default function WhitelistPage() {
                       {copied ? "Copied" : "Copy"}
                     </button>
                   </div>
+                  <p style={{ fontFamily: mono, fontSize: "0.6rem", color: referralCount >= 10 ? "#d96b5a" : "rgba(245,247,245,0.4)", margin: "6px 0 0" }}>
+                    {referralCount} / 10 referrals{referralCount >= 10 ? " — cap reached" : ""}
+                  </p>
                 </div>
 
                 <button
