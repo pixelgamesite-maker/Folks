@@ -7,7 +7,7 @@ import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
 const X_HANDLE = "thefolkseth_";
 /** Real pinned post — swap this ID whenever the client changes which post is pinned. */
-const PINNED_TWEET_ID = "2081432607011549197";
+const PINNED_TWEET_ID = "2083230400223014995";
 const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
 const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
