@@ -7,7 +7,7 @@ import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
 const X_HANDLE = "thefolkseth_";
 /** Real pinned post — swap this ID whenever the client changes which post is pinned. */
-const PINNED_TWEET_ID = "2083230400223014995";
+const PINNED_TWEET_ID = "2081432607011549197";
 const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
 const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
@@ -694,8 +694,8 @@ export default function WhitelistPage() {
         {/* Today's tasks */}
         <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
         <ListContainer>
-          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} verifyMode="like" targetTweetId={PINNED_TWEET_ID} />
-          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} verifyMode="retweet" targetTweetId={PINNED_TWEET_ID} />
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} />
           <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} verifyMode="reply" targetTweetId={PINNED_TWEET_ID} last />
         </ListContainer>
 
