@@ -173,9 +173,11 @@ function RowAction({
   );
 }
 
-/** Click → opens the link → counts down → verifies with X → done. Used for
- * Follow (no verifyMode, simple auto-complete) and Like/Retweet/Comment
- * (verifyMode set, real check against the account's own data). */
+/** Click → opens the link → counts down → done. verifyMode is optional and
+ * currently unused by any task (Follow/Like/Retweet/Comment all just award
+ * on timer completion, cost-driven decision) — the plumbing to re-enable a
+ * real X check on any of them is still here, just pass verifyMode +
+ * targetTweetId again if that's ever worth turning back on for one. */
 function CountdownRow({
   label,
   points,
@@ -696,7 +698,7 @@ export default function WhitelistPage() {
         <ListContainer>
           <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} />
           <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} />
-          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} verifyMode="reply" targetTweetId={PINNED_TWEET_ID} last />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} last />
         </ListContainer>
 
         {/* Tomorrow's tasks — locked */}
