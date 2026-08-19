@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction, setReferralCode } from "../hooks/useAuth";
 import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
-const X_HANDLE = "thefolkseth_";
+const X_HANDLE = "TheFolksXyz";
 /** Real pinned post — swap this ID whenever the client changes which post is pinned. */
 const PINNED_TWEET_ID = "2081432607011549197";
 const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
@@ -113,12 +113,33 @@ function RowAction({
   onStart,
   failReason,
 }: {
-  phase: "idle" | "counting" | "checking" | "failed" | "done";
+  phase: "idle" | "counting" | "checking" | "failed" | "done" | "locked";
   secs: number;
   actionLabel: string;
   onStart: () => void;
   failReason?: string;
 }) {
+  if (phase === "locked") {
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          padding: "7px 14px",
+          borderRadius: "6px",
+          background: "rgba(255,255,255,0.04)",
+          color: "rgba(245,247,245,0.3)",
+          fontFamily: mono,
+          fontSize: "0.62rem",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          cursor: "not-allowed",
+        }}
+      >
+        Locked
+      </span>
+    );
+  }
   if (phase === "done") {
     return (
       <span
@@ -187,6 +208,7 @@ function CountdownRow({
   onComplete,
   verifyMode,
   targetTweetId,
+  locked,
   last,
 }: {
   label: string;
@@ -197,6 +219,7 @@ function CountdownRow({
   onComplete: () => void;
   verifyMode?: "like" | "retweet" | "reply";
   targetTweetId?: string;
+  locked?: boolean;
   last?: boolean;
 }) {
   const [phase, setPhase] = useState<"idle" | "counting" | "checking" | "failed">("idle");
@@ -222,7 +245,7 @@ function CountdownRow({
   }
 
   function start() {
-    if (done || phase === "counting" || phase === "checking") return;
+    if (locked || done || phase === "counting" || phase === "checking") return;
     window.open(actionHref, "_blank");
     setPhase("counting");
     setSecs(COUNTDOWN_SECS);
@@ -243,10 +266,10 @@ function CountdownRow({
     <ListRow last={last}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
         <div>
-          <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>{label}</p>
+          <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: locked ? "rgba(245,247,245,0.35)" : "#fff" }}>{label}</p>
           <p style={{ margin: "2px 0 0", fontFamily: mono, fontSize: "0.62rem", color: done ? violet : "rgba(245,247,245,0.4)" }}>+{points} pts</p>
         </div>
-        <RowAction phase={done ? "done" : phase} secs={secs} actionLabel={actionLabel} onStart={start} failReason={failReason} />
+        <RowAction phase={done ? "done" : locked ? "locked" : phase} secs={secs} actionLabel={actionLabel} onStart={start} failReason={failReason} />
       </div>
     </ListRow>
   );
@@ -689,16 +712,16 @@ export default function WhitelistPage() {
         {/* One-time tasks */}
         <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>One-Time Tasks</p>
         <ListContainer>
-          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} />
+          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} locked />
           <BullishPostRow done={!!done.bullish_post} onComplete={() => completeTask("bullish_post")} last />
         </ListContainer>
 
         {/* Today's tasks */}
         <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
         <ListContainer>
-          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} />
-          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} />
-          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} last />
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} locked />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} locked />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} locked last />
         </ListContainer>
 
         {/* Tomorrow's tasks — locked */}
