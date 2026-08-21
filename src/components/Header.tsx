@@ -1,7 +1,7 @@
 import { display, gold } from "../lib/theme";
 import { FolksSeal } from "./shared";
 
-export const X_URL = "https://x.com/thefolkseth_";
+export const X_URL = "https://x.com/TheFolksXyz";
 
 export default function Header() {
   return (
