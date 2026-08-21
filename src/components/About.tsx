@@ -30,7 +30,7 @@ export default function About() {
           never cared about fitting in.
         </p>
         <p style={{ fontFamily: body, fontSize: "0.94rem", color: muted, lineHeight: 1.75, margin: "0 0 24px" }}>
-          More than just a PFP, each character represents a different side of internet culture —
+          More than just a PFP, each character represents a different side of internet culture,
           the humor, chaos, creativity, and freedom that make this space what it is.
         </p>
 
