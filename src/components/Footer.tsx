@@ -2,8 +2,6 @@ import { display, gold, line, mono } from "../lib/theme";
 import { FolksSeal } from "./shared";
 import { X_URL } from "./Header";
 
-const CONTACT_EMAIL = "contactsupport@folkseth.xyz";
-
 export default function Footer() {
   return (
     <footer style={{ padding: "56px 24px 40px", textAlign: "center" }}>
