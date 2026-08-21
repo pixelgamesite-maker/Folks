@@ -712,7 +712,7 @@ export default function WhitelistPage() {
         {/* One-time tasks */}
         <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>One-Time Tasks</p>
         <ListContainer>
-          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} locked />
+          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} />
           <BullishPostRow done={!!done.bullish_post} onComplete={() => completeTask("bullish_post")} last />
         </ListContainer>
 
