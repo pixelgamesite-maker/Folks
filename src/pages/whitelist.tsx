@@ -506,7 +506,7 @@ export default function WhitelistPage() {
       <div style={wrap}>
         <div style={{ ...inner, textAlign: "center", paddingTop: "60px" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "18px" }}>
-            <Avatar url={null} initial="F" size={52} />
+            <FolksSeal size={52} />
           </div>
           <p style={{ ...microLabel, color: violet, margin: "0 0 8px" }}>Whitelist</p>
           <p style={{ fontFamily: display, fontWeight: 700, fontSize: "1.3rem", margin: "0 0 10px" }}>Connect X To Continue</p>
