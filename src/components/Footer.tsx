@@ -2,7 +2,7 @@ import { display, gold, line, mono } from "../lib/theme";
 import { FolksSeal } from "./shared";
 import { X_URL } from "./Header";
 
-const CONTACT_EMAIL = "contactsupport@folkseth.xyz";
+const CONTACT_EMAIL = "admin@thefolks.xyz";
 
 export default function Footer() {
   return (
