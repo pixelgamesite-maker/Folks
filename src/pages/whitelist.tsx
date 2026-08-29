@@ -7,25 +7,34 @@ import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
 const X_HANDLE = "thefolksxyz";
 /** Real pinned post — swap this ID whenever the client changes which post is pinned.
- * The Like/Retweet task_ids below are derived from this (see LIKE_TASK_ID /
- * RETWEET_TASK_ID) specifically so that swapping this ID resets those two
- * tasks for everyone — a completion recorded against the old tweet's task_id
- * simply won't match the new one, instead of every past "Like"/"Retweet"
- * silently carrying over to a brand new pinned post. */
+ * task_id for Like/Retweet/Comment stays the fixed "like"/"retweet"/"comment"
+ * string (folks_task_completions.task_id has an FK to folks_task_definitions,
+ * which only has those five fixed rows — it can't take arbitrary values).
+ * Instead, completions are scoped by (task_id, tweet_id) in the DB, so
+ * passing this tweet_id on every Like/Retweet/Comment completion is what
+ * makes swapping this ID reset those three tasks for everyone — see
+ * doneKey() and completeTask() below, and migration
+ * 3_folks_task_completions_tweet_id.sql. */
 const PINNED_TWEET_ID = "2093729261869740287";
 const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
 const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
 const RETWEET_URL = `https://twitter.com/intent/retweet?tweet_id=${PINNED_TWEET_ID}`;
-const LIKE_TASK_ID = `like_${PINNED_TWEET_ID}`;
-const RETWEET_TASK_ID = `retweet_${PINNED_TWEET_ID}`;
-const COMMENT_TASK_ID = `comment_${PINNED_TWEET_ID}`;
+
+/** Composite key used only for the client-side `done` lookup map — matches
+ * (task_id, tweet_id) so a task shows "done" only for the tweet it was
+ * actually completed on. Not a DB value; tweetId defaults to "" for tasks
+ * that aren't tied to a specific tweet (follow, bullish_post), matching the
+ * DB column's default. */
+function doneKey(taskId: string, tweetId: string = "") {
+  return `${taskId}::${tweetId}`;
+}
 /** Deliberately no pre-filled text — X flags accounts whose followers all
  * post identical wording as bot-like. People write their own post; the
  * only requirement is that it mentions Folks. */
 const BULLISH_COMPOSE_URL = "https://twitter.com/intent/tweet";
 
-const COUNTDOWN_SECS = 60;
+const COUNTDOWN_SECS = 30;
 const pageBg = "#15131c";
 const cardBg = "rgba(255,255,255,0.03)";
 const cardBorder = violetLine;
@@ -440,7 +449,7 @@ export default function WhitelistPage() {
     (async () => {
       const [{ data: profile }, { data: completions }] = await Promise.all([
         supabase.from("folks_profiles").select("points, avatar_url, referral_code, referral_count, wallet_address").eq("id", auth.user!.id).maybeSingle(),
-        supabase.from("folks_task_completions").select("task_id").eq("user_id", auth.user!.id),
+        supabase.from("folks_task_completions").select("task_id, tweet_id").eq("user_id", auth.user!.id),
       ]);
       if (cancelled) return;
       if (profile) {
@@ -451,7 +460,7 @@ export default function WhitelistPage() {
         setWalletAddress(profile.wallet_address ?? null);
       }
       const map: Record<string, boolean> = {};
-      (completions ?? []).forEach((r: any) => { map[r.task_id] = true; });
+      (completions ?? []).forEach((r: any) => { map[doneKey(r.task_id, r.tweet_id ?? "")] = true; });
       setDone(map);
       setChecking(false);
     })();
@@ -464,9 +473,10 @@ export default function WhitelistPage() {
     if (data) setPoints(data.points ?? 0);
   }
 
-  async function completeTask(taskId: string) {
-    if (!auth.user || done[taskId]) return;
-    const { error } = await supabase.from("folks_task_completions").insert({ task_id: taskId });
+  async function completeTask(taskId: string, tweetId: string = "") {
+    const key = doneKey(taskId, tweetId);
+    if (!auth.user || done[key]) return;
+    const { error } = await supabase.from("folks_task_completions").insert({ task_id: taskId, tweet_id: tweetId });
     if (error && error.code !== "23505") {
       // 23505 = already recorded (e.g. a duplicate click) — treat as done.
       // Anything else means it genuinely didn't save; don't mark it done
@@ -475,7 +485,7 @@ export default function WhitelistPage() {
       console.error("completeTask failed:", error.message);
       return;
     }
-    setDone((prev) => ({ ...prev, [taskId]: true }));
+    setDone((prev) => ({ ...prev, [key]: true }));
     refreshPoints();
   }
 
@@ -720,16 +730,16 @@ export default function WhitelistPage() {
         {/* One-time tasks */}
         <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>One-Time Tasks</p>
         <ListContainer>
-          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} />
-          <BullishPostRow done={!!done.bullish_post} onComplete={() => completeTask("bullish_post")} last />
+          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done[doneKey("follow")]} onComplete={() => completeTask("follow")} />
+          <BullishPostRow done={!!done[doneKey("bullish_post")]} onComplete={() => completeTask("bullish_post")} last />
         </ListContainer>
 
         {/* Today's tasks */}
         <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
         <ListContainer>
-          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done[LIKE_TASK_ID]} onComplete={() => completeTask(LIKE_TASK_ID)} />
-          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done[RETWEET_TASK_ID]} onComplete={() => completeTask(RETWEET_TASK_ID)} />
-          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done[COMMENT_TASK_ID]} onComplete={() => completeTask(COMMENT_TASK_ID)} last />
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done[doneKey("like", PINNED_TWEET_ID)]} onComplete={() => completeTask("like", PINNED_TWEET_ID)} />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done[doneKey("retweet", PINNED_TWEET_ID)]} onComplete={() => completeTask("retweet", PINNED_TWEET_ID)} />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done[doneKey("comment", PINNED_TWEET_ID)]} onComplete={() => completeTask("comment", PINNED_TWEET_ID)} last />
         </ListContainer>
 
         {/* Tomorrow's tasks — locked */}
