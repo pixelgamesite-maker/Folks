@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction, setReferralCode } from "../hooks/useAuth";
 import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
-const X_HANDLE = "TheFolksXyz";
+const X_HANDLE = "thefolksxyz";
 /** Real pinned post — swap this ID whenever the client changes which post is pinned. */
 const PINNED_TWEET_ID = "2081432607011549197";
 const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
@@ -719,9 +719,9 @@ export default function WhitelistPage() {
         {/* Today's tasks */}
         <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
         <ListContainer>
-          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} locked />
-          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} locked />
-          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} locked last />
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} last />
         </ListContainer>
 
         {/* Tomorrow's tasks — locked */}
