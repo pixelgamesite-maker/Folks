@@ -301,6 +301,17 @@ function BullishPostRow({ done, onComplete, last }: { done: boolean; onComplete:
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: expanded && !done ? "10px" : 0 }}>
         <div>
           <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>Make a bullish post about Folks</p>
+          <p style={{ margin: setFailReason(data?.reason || "Couldn't verify that post.");
+      return;
+    }
+    onComplete();
+  }
+
+  return (
+    <ListRow last={last}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: expanded && !done ? "10px" : 0 }}>
+        <div>
+          <p style={{ margin: 0, fontFamily: display, fontSize: "0.9rem", fontWeight: 600, color: "#fff" }}>Make a bullish post about Folks</p>
           <p style={{ margin: "2px 0 0", fontFamily: body, fontSize: "0.68rem", color: "rgba(245,247,245,0.4)", lineHeight: 1.4, maxWidth: "220px" }}>
             Write a post about Folks and mention @{X_HANDLE}.
           </p>
@@ -460,10 +471,6 @@ export default function WhitelistPage() {
     if (!auth.user || done[taskId]) return;
     const { error } = await supabase.from("folks_task_completions").insert({ task_id: taskId });
     if (error && error.code !== "23505") {
-      // 23505 = already recorded (e.g. a duplicate click) — treat as done.
-      // Anything else means it genuinely didn't save; don't mark it done
-      // locally, or the UI would show "complete" for something the
-      // database never actually has, exactly the bug this replaces.
       console.error("completeTask failed:", error.message);
       return;
     }
@@ -719,9 +726,9 @@ export default function WhitelistPage() {
         {/* Today's tasks */}
         <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
         <ListContainer>
-          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} />
-          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} />
-          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} last />
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done[`like_${PINNED_TWEET_ID}`]} onComplete={() => completeTask(`like_${PINNED_TWEET_ID}`)} />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done[`retweet_${PINNED_TWEET_ID}`]} onComplete={() => completeTask(`retweet_${PINNED_TWEET_ID}`)} />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done[`comment_${PINNED_TWEET_ID}`]} onComplete={() => completeTask(`comment_${PINNED_TWEET_ID}`)} last />
         </ListContainer>
 
         {/* Tomorrow's tasks — locked */}
