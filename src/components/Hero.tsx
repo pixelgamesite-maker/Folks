@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import { body, display, faint, gold, ink, line, mono, muted, violet, violetLight } from "../lib/theme";
 import { Guilloche } from "./shared";
 
-const TICKER_ITEMS = ["OPENSEA", "SUPPLY: 3000", "PRICE: TBA", "LAUNCHING ON ROBINHOOD"];
+const TICKER_ITEMS = ["SUPPLY: TBA", "PRICE: TBA", "LAUNCHING ON ROBINHOOD"];
 
 const MINT_STATS: [string, string][] = [
-  ["3000", "Supply"],
+  ["TBA", "Supply"],
   ["TBA", "Mint Price"],
   ["Robinhood", "Chain"],
-  ["OpenSea", "Launchpad"],
 ];
 
 export default function Hero({ onOpenWhitelist }: { onOpenWhitelist: () => void }) {
@@ -159,7 +158,7 @@ export default function Hero({ onOpenWhitelist }: { onOpenWhitelist: () => void 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4,1fr)",
+              gridTemplateColumns: "repeat(3,1fr)",
               border: `1px solid ${line}`,
               borderRadius: "8px",
               overflow: "hidden",
