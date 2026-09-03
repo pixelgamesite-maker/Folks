@@ -5,23 +5,36 @@ import { supabase } from "../lib/supabase";
 import { useAuth, extractXHandle, setPostAuthAction, setReferralCode } from "../hooks/useAuth";
 import { isValidEvm, isValidUrl, FolksSeal } from "../components/shared";
 
-const X_HANDLE = "TheFolksXyz";
-/** Real pinned post — swap this ID whenever the client changes which post is pinned. */
+const X_HANDLE = "thefolksxyz";
+/** Real pinned post — swap this ID whenever the client changes which post is pinned.
+ * task_id for Like/Retweet/Comment stays the fixed "like"/"retweet"/"comment"
+ * string (folks_task_completions.task_id has an FK to folks_task_definitions,
+ * which only has those five fixed rows — it can't take arbitrary values).
+ * Instead, completions are scoped by (task_id, tweet_id) in the DB, so
+ * passing this tweet_id on every Like/Retweet/Comment completion is what
+ * makes swapping this ID reset those three tasks for everyone — see
+ * doneKey() and completeTask() below, and migration
+ * 3_folks_task_completions_tweet_id.sql. */
 const PINNED_TWEET_ID = "2095514146590564457";
 const PINNED_TWEET_URL = `https://x.com/${X_HANDLE}/status/${PINNED_TWEET_ID}`;
 const FOLLOW_URL = `https://twitter.com/intent/follow?screen_name=${X_HANDLE}`;
-/** Temporary stand-in link for Like/Retweet/Comment until the real pinned
- * post is ready — swap PINNED_TWEET_ID above (or these constants directly)
- * once there's an actual post to point these at. */
-const TEMP_TASK_URL = "https://x.com/thefolksxyz";
-const LIKE_URL = TEMP_TASK_URL;
-const RETWEET_URL = TEMP_TASK_URL;
+const LIKE_URL = `https://twitter.com/intent/like?tweet_id=${PINNED_TWEET_ID}`;
+const RETWEET_URL = `https://twitter.com/intent/retweet?tweet_id=${PINNED_TWEET_ID}`;
+
+/** Composite key used only for the client-side `done` lookup map — matches
+ * (task_id, tweet_id) so a task shows "done" only for the tweet it was
+ * actually completed on. Not a DB value; tweetId defaults to "" for tasks
+ * that aren't tied to a specific tweet (follow, bullish_post), matching the
+ * DB column's default. */
+function doneKey(taskId: string, tweetId: string = "") {
+  return `${taskId}::${tweetId}`;
+}
 /** Deliberately no pre-filled text — X flags accounts whose followers all
  * post identical wording as bot-like. People write their own post; the
  * only requirement is that it mentions Folks. */
 const BULLISH_COMPOSE_URL = "https://twitter.com/intent/tweet";
 
-const COUNTDOWN_SECS = 60;
+const COUNTDOWN_SECS = 30;
 const pageBg = "#15131c";
 const cardBg = "rgba(255,255,255,0.03)";
 const cardBorder = violetLine;
@@ -55,7 +68,7 @@ const microLabel: React.CSSProperties = {
  * — that's what happened here, not an actual bug in the cycle length).
  * Change ROTATION_HOURS here if this ever needs to be a different length. */
 const ROTATION_ANCHOR_MS = Date.UTC(2026, 6, 31, 0, 0, 0);
-const ROTATION_HOURS = 26;
+const ROTATION_HOURS = 48;
 const ROTATION_MS = ROTATION_HOURS * 60 * 60 * 1000;
 
 function msUntilNextRotation() {
@@ -407,10 +420,16 @@ export default function WhitelistPage() {
   const [checking, setChecking] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lockCountdown, setLockCountdown] = useState(formatCountdown(msUntilNextRotation()));
 
   useEffect(() => {
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (ref) setReferralCode(ref);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setLockCountdown(formatCountdown(msUntilNextRotation())), 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -430,7 +449,7 @@ export default function WhitelistPage() {
     (async () => {
       const [{ data: profile }, { data: completions }] = await Promise.all([
         supabase.from("folks_profiles").select("points, avatar_url, referral_code, referral_count, wallet_address").eq("id", auth.user!.id).maybeSingle(),
-        supabase.from("folks_task_completions").select("task_id").eq("user_id", auth.user!.id),
+        supabase.from("folks_task_completions").select("task_id, tweet_id").eq("user_id", auth.user!.id),
       ]);
       if (cancelled) return;
       if (profile) {
@@ -441,7 +460,7 @@ export default function WhitelistPage() {
         setWalletAddress(profile.wallet_address ?? null);
       }
       const map: Record<string, boolean> = {};
-      (completions ?? []).forEach((r: any) => { map[r.task_id] = true; });
+      (completions ?? []).forEach((r: any) => { map[doneKey(r.task_id, r.tweet_id ?? "")] = true; });
       setDone(map);
       setChecking(false);
     })();
@@ -454,9 +473,10 @@ export default function WhitelistPage() {
     if (data) setPoints(data.points ?? 0);
   }
 
-  async function completeTask(taskId: string) {
-    if (!auth.user || done[taskId]) return;
-    const { error } = await supabase.from("folks_task_completions").insert({ task_id: taskId });
+  async function completeTask(taskId: string, tweetId: string = "") {
+    const key = doneKey(taskId, tweetId);
+    if (!auth.user || done[key]) return;
+    const { error } = await supabase.from("folks_task_completions").insert({ task_id: taskId, tweet_id: tweetId });
     if (error && error.code !== "23505") {
       // 23505 = already recorded (e.g. a duplicate click) — treat as done.
       // Anything else means it genuinely didn't save; don't mark it done
@@ -465,7 +485,7 @@ export default function WhitelistPage() {
       console.error("completeTask failed:", error.message);
       return;
     }
-    setDone((prev) => ({ ...prev, [taskId]: true }));
+    setDone((prev) => ({ ...prev, [key]: true }));
     refreshPoints();
   }
 
@@ -710,23 +730,28 @@ export default function WhitelistPage() {
         {/* One-time tasks */}
         <p style={{ ...microLabel, color: violet, margin: "0 0 10px" }}>One-Time Tasks</p>
         <ListContainer>
-          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done.follow} onComplete={() => completeTask("follow")} />
-          <BullishPostRow done={!!done.bullish_post} onComplete={() => completeTask("bullish_post")} last />
+          <CountdownRow label="Follow Folks" points={100} actionLabel="Follow" actionHref={FOLLOW_URL} done={!!done[doneKey("follow")]} onComplete={() => completeTask("follow")} />
+          <BullishPostRow done={!!done[doneKey("bullish_post")]} onComplete={() => completeTask("bullish_post")} last />
         </ListContainer>
 
         {/* Today's tasks */}
         <p style={{ ...microLabel, color: violet, margin: "22px 0 10px" }}>Today's Tasks</p>
         <ListContainer>
-          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done.like} onComplete={() => completeTask("like")} locked />
-          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done.retweet} onComplete={() => completeTask("retweet")} locked />
-          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done.comment} onComplete={() => completeTask("comment")} locked last />
+          <CountdownRow label="Like the pinned post" points={25} actionLabel="Like" actionHref={LIKE_URL} done={!!done[doneKey("like", PINNED_TWEET_ID)]} onComplete={() => completeTask("like", PINNED_TWEET_ID)} />
+          <CountdownRow label="Retweet the pinned post" points={25} actionLabel="Retweet" actionHref={RETWEET_URL} done={!!done[doneKey("retweet", PINNED_TWEET_ID)]} onComplete={() => completeTask("retweet", PINNED_TWEET_ID)} />
+          <CountdownRow label="Comment and tag 2 frens" points={50} actionLabel="Comment" actionHref={PINNED_TWEET_URL} done={!!done[doneKey("comment", PINNED_TWEET_ID)]} onComplete={() => completeTask("comment", PINNED_TWEET_ID)} last />
         </ListContainer>
 
-        {/* Next task group goes here once the new tweet is posted — reuse
-            the same doneKey(taskId, tweetId) pattern above so swapping in
-            the new tweet's ID won't show it as already-completed for
-            anyone. ROTATION_HOURS (26) is set and ready for whenever this
-            becomes a real timed rotation again. */}
+        {/* Tomorrow's tasks — locked */}
+        <p style={{ ...microLabel, color: "rgba(245,247,245,0.35)", margin: "22px 0 10px" }}>Tomorrow's Tasks</p>
+        <div style={{ border: `1px solid ${cardBorder}`, borderRadius: "14px", padding: "20px", textAlign: "center", opacity: 0.6 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(245,247,245,0.4)" strokeWidth="1.6" style={{ marginBottom: "8px" }}>
+            <rect x="5" y="11" width="14" height="9" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+          <p style={{ fontFamily: display, fontSize: "0.88rem", fontWeight: 600, color: "#fff", margin: "0 0 4px" }}>New tasks unlock in</p>
+          <p style={{ fontFamily: mono, fontSize: "1.1rem", fontWeight: 700, color: violet, margin: 0 }}>{lockCountdown}</p>
+        </div>
       </div>
     </div>
   );
